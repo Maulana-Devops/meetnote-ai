@@ -55,25 +55,28 @@ Bukti tertulis lengkap ada di:
 
 ## Bukti visual
 
-Tabel berikut adalah placeholder untuk tangkapan layar (SS) yang akan
-ditambahkan kemudian. File belum ada di repository saat ini, jadi jangan
-mengira tautan di bawah sudah dapat diklik sampai berkasnya disalin ke
-`docs/screenshots/`.
+Tangkapan layar berikut diambil sungguhan dari aplikasi yang berjalan di
+`http://localhost:5173` memakai Chrome headless (1440×1000), bukan gambar yang
+digenerate. Berkas disimpan di `docs/screenshots/`.
 
-| File yang direncanakan | Bukti yang ditampilkan | Status |
+| Bukti | Tampilan | Gambar |
 | --- | --- | --- |
-| `docs/screenshots/01-dashboard.png` | Halaman dashboard berisi daftar meeting | Placeholder |
-| `docs/screenshots/02-new-meeting.png` | Form pembuatan meeting + panel rekaman | Placeholder |
-| `docs/screenshots/03-recording.png` | Indikator `recording`/`paused` dan timer (MAT-05/06) | Placeholder |
-| `docs/screenshots/04-transcript.png` | Dua segmen `[MOCK]` dengan penanda waktu | Placeholder |
-| `docs/screenshots/05-summary.png` | Ringkasan `overview`/`topics` dan action item | Placeholder |
-| `docs/screenshots/06-export.png` | Panel **Unduh TXT** / **Unduh PDF** (MAT-21/22) | Placeholder |
-| `docs/screenshots/07-error.png` | Pesan error ramah saat provider mock gagal (MAT-25) | Placeholder |
-| `docs/screenshots/08-diagnostics.png` | `health/diagnostics`: 0 orphan, 0 file sementara | Placeholder |
+| Dashboard | Daftar meeting dan status koneksi backend | ![Dashboard](docs/screenshots/01-dashboard.png) |
+| New Meeting | Form **Buat Meeting Baru** | ![New Meeting](docs/screenshots/02-new-meeting.png) |
+| Rekaman | Panel **Rekaman** pada detail meeting: berkas tersimpan, durasi, ukuran | ![Rekaman](docs/screenshots/03-recording.png) |
+| Transkrip | Dua segmen `[MOCK]` dengan penanda waktu | ![Transkrip](docs/screenshots/04-transcript.png) |
+| Ringkasan | AI Summary dan action item | ![Ringkasan](docs/screenshots/05-summary.png) |
+| Ekspor | Panel **Unduh TXT** / **Unduh PDF** | ![Ekspor](docs/screenshots/06-export.png) |
+| Diagnostics | Respons API `/health/diagnostics` — 19 file / 19 metadata, 0 orphan | ![Diagnostics](docs/screenshots/08-diagnostics.png) |
 
-Cara menambahkan SS: simpan gambar dengan nama persis di kolom pertama, lalu
-lihat `docs/screenshots/README.md` untuk contoh tag Markdown yang bisa
-menggantikan baris placeholder di atas.
+`docs/screenshots/07-error.png` sengaja tidak dibuat: tidak ada meeting
+berstatus `FAILED` di DB test saat SS diambil, jadi gambar itu tidak akan
+benar-benar menampilkan pesan error. Bukti MAT-25 tetap ada di
+`docs/MANUAL_ACCEPTANCE_TEST.md` dan `docs/SPRINT13.md`.
+
+Catatan: Chrome headless tidak dapat mereproduksi izin mikrofon maupun klik
+Pause/Resume secara interaktif. SS `03-recording.png` menunjukkan **hasil**
+rekaman yang sudah tersimpan, bukan indikator `recording`/`paused` secara live.
 
 ## Teknologi
 

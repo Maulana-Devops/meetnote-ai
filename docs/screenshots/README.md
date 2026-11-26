@@ -1,38 +1,42 @@
 # Bukti visual MeetNote AI
 
-Folder ini dipakai untuk menyimpan tangkapan layar (SS) yang menjadi bukti
-bahwa aplikasi benar-benar berjalan, bukan hanya dokumentasi tertulis.
+Folder ini menyimpan tangkapan layar (SS) sungguhan dari aplikasi yang
+berjalan, bukan gambar yang digenerate.
 
 ## Status saat ini
 
-Belum ada file gambar di folder ini. Tabel di `README.md` bagian **Bukti visual**
-masih berisi `Placeholder`. File `.gitkeep` hanya menjaga folder tetap ada di Git.
+Tujuh berkas sudah ada: `01-dashboard.png`, `02-new-meeting.png`,
+`03-recording.png`, `04-transcript.png`, `05-summary.png`, `06-export.png`,
+dan `08-diagnostics.png`. Semua berukuran 1440×1000 dan diambil dengan Chrome
+headless dari `http://127.0.0.1:5173` (diagnostics dari API port 8000).
 
-## Nama file yang direncanakan
+`07-error.png` tidak disediakan karena tidak ada meeting berstatus `FAILED`
+pada saat pengambilan. Bukti tertulis MAT-25 ada di
+`../MANUAL_ACCEPTANCE_TEST.md` dan `../SPRINT13.md`.
+
+## Daftar berkas
 
 | Nama file | Isi |
 | --- | --- |
-| `01-dashboard.png` | Dashboard berisi daftar meeting |
-| `02-new-meeting.png` | Form pembuatan meeting dan panel rekaman |
-| `03-recording.png` | Indikator rekaman, status `paused`, dan timer (MAT-05/06) |
-| `04-transcript.png` | Dua segmen `[MOCK]` beserta waktu (MAT-10) |
-| `05-summary.png` | Ringkasan dan action item (MAT-15/19) |
-| `06-export.png` | Panel ekspor TXT/PDF (MAT-21/22) |
-| `07-error.png` | Pesan error ramah dari kegagalan mock (MAT-25) |
-| `08-diagnostics.png` | Diagnostics storage tanpa orphan/temp file |
+| `01-dashboard.png` | Dashboard berisi daftar meeting dan status backend |
+| `02-new-meeting.png` | Form pembuatan meeting baru |
+| `03-recording.png` | Panel **Rekaman** pada detail meeting (berkas tersimpan) |
+| `04-transcript.png` | Dua segmen `[MOCK]` beserta penanda waktu |
+| `05-summary.png` | AI Summary dan action item |
+| `06-export.png` | Panel ekspor TXT/PDF |
+| `08-diagnostics.png` | Respons API `/health/diagnostics` (0 orphan, 0 temp file) |
 
-## Cara menambahkan
+## Cara menambahkan SS lain
 
-1. Simpan SS dengan nama persis seperti di tabel, misalnya
-   `docs/screenshots/01-dashboard.png`.
-2. Di `README.md` bagian **Bukti visual**, ganti baris placeholder untuk file
-   itu dengan tag Markdown:
+1. Simpan gambar dengan nama yang jelas di folder ini, misalnya
+   `07-error.png`.
+2. Tambahkan baris di `README.md` bagian **Bukti visual**:
 
    ```markdown
-   | `docs/screenshots/01-dashboard.png` | Dashboard daftar meeting | ![Dashboard](docs/screenshots/01-dashboard.png) |
+   | Error provider | Pesan error ramah | ![Error](docs/screenshots/07-error.png) |
    ```
 
-3. Commit dan push perubahan. Gambar akan tampil langsung di halaman GitHub.
+3. Commit dan push. Gambar akan tampil langsung di halaman GitHub.
 
 ## Catatan privasi
 
