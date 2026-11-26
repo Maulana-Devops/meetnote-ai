@@ -28,9 +28,52 @@ menggunakan AI.
 > test, dan mengonfirmasi ulang regresi 229 + 7 + build sukses. Lanjutan Phase A/B
 > 24–26 Nov menyelesaikan manual acceptance: **PASS 26 / FAIL 0 / BLOCKED 0 /
 > NOT TESTED 0**, termasuk MAT-25 lewat kegagalan mock terkontrol; bukti ada di
-> `docs/MANUAL_ACCEPTANCE_TEST.md` dan `docs/SPRINT13.md`. Repository masih belum
-> diinisialisasi; tidak ada commit/push. Rilis lokal/internal secara teknis siap,
-> deployment publik masih memerlukan autentikasi dan konkurensi antar-proses.
+> `docs/MANUAL_ACCEPTANCE_TEST.md` dan `docs/SPRINT13.md`. Repository kini sudah
+> diinisialisasi dan kode pertama telah di-push ke GitHub. Rilis lokal/internal
+> secara teknis siap; deployment publik masih memerlukan autentikasi dan
+> konkurensi antar-proses.
+
+## Tentang proyek
+
+MeetNote AI adalah aplikasi web lokal/internal untuk membantu rapat: pengguna
+dapat merekam langsung dari mikrofon browser atau mengunggah berkas audio,
+mendapat transkrip bersegmen dengan penanda waktu, mengenali giliran pembicara
+secara anonim (`Speaker 1`, `Speaker 2`, …), menyunting transkrip, membuat
+ringkasan dan action item, lalu mengunduh notulen dalam format TXT atau PDF.
+
+Selama acceptance, seluruh hasil AI berasal dari **provider mock** dan diberi
+awalan `[MOCK]`. Tidak ada API key atau penyedia cloud yang dipakai. Ini
+dirancang supaya alur aplikasi bisa diverifikasi end-to-end tanpa kredensial;
+provider live dapat dipasang kemudian sebagai pengganti mock.
+
+Bukti tertulis lengkap ada di:
+
+- `docs/MANUAL_ACCEPTANCE_TEST.md` — checklist MAT-01–MAT-26 dan ringkasan akhir.
+- `docs/SPRINT13.md` — bukti API/UI per skenario, termasuk lampiran 5.1w untuk
+  unggah berkas audio milik pengguna.
+- `docs/ARCHITECTURE.md` — batasan arsitektur dan status rilis.
+
+## Bukti visual
+
+Tabel berikut adalah placeholder untuk tangkapan layar (SS) yang akan
+ditambahkan kemudian. File belum ada di repository saat ini, jadi jangan
+mengira tautan di bawah sudah dapat diklik sampai berkasnya disalin ke
+`docs/screenshots/`.
+
+| File yang direncanakan | Bukti yang ditampilkan | Status |
+| --- | --- | --- |
+| `docs/screenshots/01-dashboard.png` | Halaman dashboard berisi daftar meeting | Placeholder |
+| `docs/screenshots/02-new-meeting.png` | Form pembuatan meeting + panel rekaman | Placeholder |
+| `docs/screenshots/03-recording.png` | Indikator `recording`/`paused` dan timer (MAT-05/06) | Placeholder |
+| `docs/screenshots/04-transcript.png` | Dua segmen `[MOCK]` dengan penanda waktu | Placeholder |
+| `docs/screenshots/05-summary.png` | Ringkasan `overview`/`topics` dan action item | Placeholder |
+| `docs/screenshots/06-export.png` | Panel **Unduh TXT** / **Unduh PDF** (MAT-21/22) | Placeholder |
+| `docs/screenshots/07-error.png` | Pesan error ramah saat provider mock gagal (MAT-25) | Placeholder |
+| `docs/screenshots/08-diagnostics.png` | `health/diagnostics`: 0 orphan, 0 file sementara | Placeholder |
+
+Cara menambahkan SS: simpan gambar dengan nama persis di kolom pertama, lalu
+lihat `docs/screenshots/README.md` untuk contoh tag Markdown yang bisa
+menggantikan baris placeholder di atas.
 
 ## Teknologi
 
