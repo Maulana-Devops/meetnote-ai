@@ -1,0 +1,1 @@
+"""Inisialisasi metadata package backend app."""
