@@ -1,0 +1,49 @@
+# Deployment on-prem untuk komunitas/UMKM.
+# Salin backend/.env.example ke backend/.env sebelum menjalankan compose.
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file:
+      - ./backend/.env
+    environment:
+      # Container memakai volume terpisah; DB/audio pengguna di host tidak disentuh.
+      DATABASE_URL: sqlite:////data/meetnote.db
+      STORAGE_DIR: /data/storage
+      # Fase 1: bobot model opsional tidak masuk image/Git; volume terpisah.
+      STT_MODEL_DIR: /models/faster-whisper
+      INDONESIAN_VOCAB_PATH: /config/indonesian-vocab.txt
+      BACKEND_PORT: 8000
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:4173,http://127.0.0.1:4173}
+    volumes:
+      - meetnote_data:/data
+      - meetnote_models:/models
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+    ports:
+      - "4173:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  meetnote_data:
+  meetnote_models:

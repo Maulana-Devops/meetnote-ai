@@ -17,13 +17,19 @@ constraint ada, integritas tetap dijaga di level ORM/clear_* seperti sebelumnya.
 """
 
 import logging
+from pathlib import Path
 
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Connection
 
 from .session import engine
 
 logger = logging.getLogger(__name__)
+
+# backend/app/database/migrations.py -> backend/
+_BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 
 _UNIQUE_INDEXES = (
@@ -110,3 +116,37 @@ def apply_additive_migrations() -> None:
         for name, table, column in _UNIQUE_INDEXES:
             if table in table_names:
                 _ensure_unique_index(connection, name, table, column)
+
+
+def _alembic_config() -> Config:
+    """Buat Config Alembic yang menunjuk ke folder migrasi backend."""
+    config = Config(str(_BACKEND_ROOT / "alembic.ini"))
+    config.set_main_option("script_location", str(_BACKEND_ROOT / "alembic"))
+    return config
+
+
+def run_migrations() -> None:
+    """Terapkan Alembic dengan aman untuk DB baru maupun DB lama.
+
+    - DB kosong: ``upgrade head`` membuat seluruh tabel dari baseline.
+    - DB lama yang sudah punya tabel tetapi belum punya ``alembic_version``:
+      jalankan migrasi aditif lama, lalu ``stamp head``. Tidak ada tabel yang
+      dijatuhkan dan tidak ada data yang diubah.
+    - DB yang sudah punya ``alembic_version``: ``upgrade head`` (biasanya no-op).
+    """
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+    has_version_table = "alembic_version" in tables
+    has_legacy_schema = bool(tables - {"alembic_version"})
+
+    config = _alembic_config()
+
+    if not has_version_table and has_legacy_schema:
+        logger.info("legacy_database_detected action=stamp_baseline")
+        apply_additive_migrations()
+        command.stamp(config, "head")
+        logger.info("legacy_database_stamped revision=head")
+        return
+
+    command.upgrade(config, "head")
+    logger.info("alembic_upgrade_complete revision=head")

@@ -10,12 +10,57 @@
   --color-border: #e5e7eb;
   --color-success: #16a34a;
   --color-danger: #dc2626;
+  --color-focus: #f59e0b;
   --radius: 12px;
   --shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
 
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: var(--color-text);
   background: var(--color-bg);
+}
+
+/* Fase 1: fokus keyboard terlihat jelas di semua kontrol interaktif. */
+:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* Toggle kontras tinggi (disimpan di localStorage) mengikuti preferensi OS. */
+:root.high-contrast {
+  --color-bg: #000000;
+  --color-surface: #000000;
+  --color-text: #ffffff;
+  --color-muted: #e5e7eb;
+  --color-primary: #ffff00;
+  --color-primary-dark: #ffffff;
+  --color-border: #ffffff;
+  --color-success: #00ff00;
+  --color-danger: #ff8080;
+  --color-focus: #00ffff;
+  --shadow: none;
+}
+
+.high-contrast .button--primary {
+  color: #000000;
+}
+
+.high-contrast .button--ghost:hover {
+  background: #ffff00;
+  color: #000000;
+}
+
+@media (prefers-contrast: more) {
+  :root:not(.high-contrast) {
+    --color-bg: #ffffff;
+    --color-surface: #ffffff;
+    --color-text: #000000;
+    --color-muted: #1f2937;
+    --color-primary: #0000cc;
+    --color-primary-dark: #000080;
+    --color-border: #000000;
+    --color-focus: #cc5500;
+    --shadow: none;
+  }
 }
 
 * {
@@ -391,7 +436,7 @@ body {
 }
 
 .meeting-form input:focus {
-  outline: 2px solid #bfdbfe;
+  outline: 2px solid var(--color-focus);
   border-color: var(--color-primary);
 }
 
@@ -400,6 +445,24 @@ body {
   border-top: 1px solid var(--color-border);
   margin-top: 22px;
   padding-top: 20px;
+}
+
+/* Caption langsung (Fase 1) ditampilkan jelas sebagai bantuan, bukan bukti. */
+.live-caption {
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius);
+}
+
+.live-caption__text {
+  margin-top: 10px;
+  min-height: 24px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  line-height: 1.5;
 }
 
 .button-row {

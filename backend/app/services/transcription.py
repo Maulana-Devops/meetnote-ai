@@ -25,7 +25,7 @@ from ..models.transcript import TranscriptSegment, TranscriptionJob, Transcripti
 from ..schemas.transcription import TranscriptionRead
 from . import job_guard
 from .diarization.workflow import clear_diarization
-from .stt.base import SttResult, SttSegment
+from .stt.base import SttResult, SttSegment, audio_source_ref
 from .stt.errors import (
     SttError,
     SttInvalidResultError,
@@ -256,6 +256,9 @@ def _validate_and_normalize(result: SttResult) -> tuple[list[SttSegment], bool]:
                 text=text,
                 start_seconds=segment.start_seconds,
                 end_seconds=segment.end_seconds,
+                language=segment.language,
+                source_ref=segment.source_ref
+                or audio_source_ref(segment.start_seconds, segment.end_seconds),
             )
         )
 

@@ -44,13 +44,16 @@ FastAPI ── routers /api/v1 ── schemas (Pydantic)
     │
     ├─ services/transcription.py ── BackgroundTasks (in-process)
     │       └─ services/stt/registry.py
-    │             ├─ MockSttProvider      (test / lokal, teks [MOCK])
-    │             └─ OpenAISttProvider    (httpx → /audio/transcriptions)
+    │             ├─ MockSttProvider            (test / lokal, teks [MOCK])
+    │             ├─ OpenAISttProvider          (httpx → /audio/transcriptions)
+    │             ├─ FasterWhisperSttProvider   (Fase 1, lokal, lazy import)
+    │             └─ WhisperCppSttProvider      (Fase 1, server OpenAI-compatible)
     │
     ├─ services/diarization/workflow.py ── BackgroundTasks (in-process)
     │       ├─ services/diarization/registry.py
     │       │    ├─ MockDiarizationProvider       (test / lokal, [MOCK])
-    │       │    └─ DeepgramDiarizationProvider   (httpx → /v1/listen)
+    │       │    ├─ DeepgramDiarizationProvider   (httpx → /v1/listen)
+    │       │    └─ PyannoteDiarizationProvider   (Fase 1, opt-in, lazy import)
     │       └─ mapping temporal → TranscriptSegment.speaker_id
     │
     ├─ services/summary/workflow.py ── BackgroundTasks (in-process)
@@ -113,18 +116,29 @@ storage/meetings/{meeting_id}/recording-{uuid}.{ext}
   opsi speaker (Sprint 8)
 - `app/services/transcription.py` – validasi awal, job background, normalisasi;
   memanggil `clear_diarization()` saat transkrip dibersihkan
-- `app/services/stt/base.py` – protocol `SttProvider` + `SttResult`/`SttSegment`
+- `app/services/stt/base.py` – protocol `SttProvider` + `SttResult`/`SttSegment`,
+  `language`, dan `source_ref` (`audio#t=<start>-<end>`)
 - `app/services/stt/errors.py` – error bertipe + status HTTP yang aman
 - `app/services/stt/registry.py` – pemilih provider dari `STT_PROVIDER`
 - `app/services/stt/openai_provider.py` – implementasi API OpenAI via httpx
 - `app/services/stt/mock.py` – provider deterministik untuk test
+- `app/services/stt/faster_whisper_provider.py` – STT lokal Fase 1 (lazy import,
+  `model_factory` injectable untuk contract test)
+- `app/services/stt/whisper_cpp_provider.py` – fallback lokal via server
+  OpenAI-compatible (WAV PCM 16-bit mono)
+- `app/services/indonesian/` – kamus, normalisasi konservatif, dan metrik
+  CER/WER/DER untuk benchmark lokal
 - `app/services/diarization/base.py` – protocol `DiarizationProvider` +
   `DiarizationResult`/`DiarizationTurn`
 - `app/services/diarization/errors.py` – error diarisasi bertipe + status HTTP aman
 - `app/services/diarization/registry.py` – pemilih provider dari
   `DIARIZATION_PROVIDER`
 - `app/services/diarization/deepgram_provider.py` – Deepgram Listen via httpx
+- `app/services/diarization/pyannote_provider.py` – provider lokal Fase 1
+  (opt-in, token HF dari environment, telemetri dimatikan)
 - `app/services/diarization/mock.py` – provider mock deterministik
+- `app/services/summary/prompts/id.py` – prompt ringkasan Bahasa Indonesia
+  tanpa mengubah JSON Schema `overview`/`topics`/`decisions`
 - `app/services/diarization/workflow.py` – validasi, background task, mapping,
   recovery, dan pembersihan hasil
 - `app/services/transcript_editing.py` – aturan Sprint 6: validasi kepemilikan,
@@ -156,6 +170,10 @@ storage/meetings/{meeting_id}/recording-{uuid}.{ext}
   `downloadExport(meetingId, format)`, plus helper `patchJson<T>()`)
 - `src/hooks/useMediaRecorder.ts` – logika MediaRecorder, timer, cleanup
 - `src/hooks/useAudioFile.ts` – validasi awal, durasi, preview file lokal
+- `src/hooks/useLiveCaption.ts` – caption browser `id-ID` opsional saat merekam;
+  tidak dikirim ke server dan bukan sumber notulen
+- `src/utils/contrast.ts` – preferensi kontras tinggi di `localStorage` dan
+  class `high-contrast` pada `<html>`
 - `src/components/NewMeeting.tsx` – form + dua sumber audio (rekam / upload)
 - `src/components/AudioUploader.tsx` – file picker, dropzone, preview, upload
 - `src/components/MeetingList.tsx` – daftar meeting + metadata audio
@@ -342,7 +360,9 @@ menambah kolom nullable `run_token` pada keempat tabel job dan unique index
    (Sprint 9).
 
 Tidak ada `DROP TABLE`, tidak ada recreasi tabel, dan tidak ada penghapusan
-data. Alembic tidak ditambahkan karena perubahan masih aditif dan idempoten.
+data. Fase 0 menambahkan Alembic baseline `0001`: database baru dibuat dari
+baseline yang setara dengan model saat ini, sedangkan database lama di-`stamp`
+setelah migrasi aditif dijalankan. Tidak ada perubahan data pengguna.
 FK baru otomatis ada pada database baru; pada database lama SQLite tidak
 mendukung `ALTER TABLE ADD CONSTRAINT`, sehingga integritas tetap dijaga di
 level ORM (`clear_diarization()` melepaskan `speaker_id` sebelum speaker
@@ -396,8 +416,8 @@ mempunyai constraint tersebut.
 - Tidak ada komponen arsitektur, dependency, endpoint, atau migrasi baru.
 - Packaging memakai struktur yang sudah ada: backend + `requirements.txt`,
   frontend + `package.json`/`package-lock.json`, dan folder `docs/`.
-- Repository tetap tanpa Git; tidak ada `git init`, commit, push, atau remote
-  yang dibuat. Rekomendasi inisialisasi ada di `docs/SPRINT12.md`.
+- Saat sprint repository masih tanpa Git; setelah lanjutan Phase A/B repository
+  diinisialisasi dan remote SSH terdaftar. Detail di `docs/SPRINT13.md`.
 - Backup/restore menangani dua artefak yang terpisah: `backend/meetnote.db` dan
   `storage/meetings/`. Hubungannya lewat `audio_assets.storage_path` relatif.
 - Checklist manual 26 skenario tidak dijalankan dalam sprint ini dan tetap
@@ -405,17 +425,44 @@ mempunyai constraint tersebut.
 
 ## Sprint 13 — acceptance gate
 
-- Persetujuan untuk `git init` ditolak, sehingga repository tetap tanpa Git.
-  Tidak ada operasi Git write, commit, push, atau perubahan remote.
+- Persetujuan `git init` saat sprint ditolak dan dihormati; setelahnya
+  disetujui, commit awal dibuat, dan kode di-push lewat SSH. Operasi Git lanjutan
+  tetap memerlukan persetujuan eksplisit.
 - Acceptance otomatis MAT-02/MAT-03/MAT-26 memakai `api_test.db` dan
   `backend/test_storage`; DB/audio pengguna tidak disentuh.
-- Pada akhir Sprint 13, MAT-25 `BLOCKED` tanpa persetujuan live provider; 22
-  skenario lain masih `NOT TESTED` dan menunggu tindakan pengguna.
+- Pada akhir Sprint 13, MAT-25 `BLOCKED` tanpa persetujuan live provider.
+  Lanjutan Phase A/B 24–26 Nov membuktikan seluruh 26 skenario lewat mock
+  terkontrol: **PASS 26 / FAIL 0 / BLOCKED 0 / NOT TESTED 0**.
 - Pembaruan lanjutan Phase A/B 24–26 Nov: seluruh 26 skenario telah dibuktikan,
   termasuk MAT-25 lewat kegagalan mock terkontrol tanpa live provider. Ringkasan
   terkini ada di `docs/MANUAL_ACCEPTANCE_TEST.md` bagian 5.
 - Arsitektur, dependency, endpoint, dan schema tidak berubah. Detail ada di
   `docs/SPRINT13.md`.
+
+## Fase 0 — fondasi mutu setelah acceptance
+
+Perubahan ini tidak mengubah endpoint bisnis maupun perilaku mock PASS 26/26:
+
+- **Alembic `0001_baseline.py`** menjadi satu-satunya jalur skema baru.
+  `run_migrations()` membedakan database kosong, database lama tanpa
+  `alembic_version`, dan database yang sudah termigrasi. `apply_additive_migrations()`
+  tetap dipertahankan sebagai jalur kompatibilitas dan dipanggil sebelum
+  `stamp head` pada database lama. `scripts/verify_migrations.py` menguji kedua
+  jalur pada direktori temporer; data pengguna tidak pernah disentuh.
+- **Logging JSON + request ID** ditambahkan di `app/core/logging.py`. Middleware
+  menulis `X-Request-ID` ke response dan `/health/diagnostics` mengembalikan
+  nilai yang sama.
+- **CI** menjalankan backend `pytest`, verifikasi `alembic history`, frontend
+  `build`/`test`, dan `backend/scripts/check_secrets.py`. Dependabot memantau
+  `pip`, `npm`, dan GitHub Actions.
+- **Docker Compose** memisahkan volume `/data` untuk DB dan audio. Lingkungan
+  development PowerShell manual tetap didokumentasikan di `INSTALLATION.md`;
+  deployment container ada di `DEPLOYMENT_ONPREM.md`.
+- Tata kelola repo: `LICENSE` (MIT), `CONTRIBUTING.md`, `CODEOWNERS`, dan
+  `SECURITY.md`.
+
+Test suite tetap mengelola skema sendiri dengan `RUN_DB_MIGRATIONS=false` agar
+tabel `alembic_version` tidak mengganggu `create_all()`/`drop_all()` fixture.
 
 ## Batasan arsitektur saat ini
 

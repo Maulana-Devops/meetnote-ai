@@ -4,6 +4,7 @@
 // Sprint 2: navigasi sederhana ke halaman New Meeting / detail tanpa library router.
 // Sprint 3: upload file lokal + hapus/tambah ulang rekaman lewat halaman detail.
 // Sprint 4: transkripsi audio di halaman detail + status background.
+// Fase 1: Bahasa Indonesia-first, caption id-ID, dan toggle kontras.
 
 import { useCallback, useEffect, useState } from 'react'
 
@@ -12,6 +13,7 @@ import { MeetingDetail } from './components/MeetingDetail'
 import { MeetingList } from './components/MeetingList'
 import { NewMeeting } from './components/NewMeeting'
 import type { Meeting } from './types'
+import { applyContrastPreference, readContrastPreference } from './utils/contrast'
 
 type LoadState = 'loading' | 'ready' | 'error'
 type View = 'dashboard' | 'new' | 'detail'
@@ -27,6 +29,11 @@ export default function App() {
   const [justSaved, setJustSaved] = useState(false)
   // `true` = halaman New Meeting dipakai untuk menambah rekaman ke meeting yang sudah ada.
   const [addingToExisting, setAddingToExisting] = useState(false)
+  const [highContrast, setHighContrast] = useState(readContrastPreference)
+
+  useEffect(() => {
+    applyContrastPreference(highContrast)
+  }, [highContrast])
 
   const loadMeetings = useCallback(async () => {
     setState('loading')
@@ -118,8 +125,16 @@ export default function App() {
                   ? 'Backend online'
                   : 'Backend offline'}
             </span>
+            <button
+              className="button button--ghost"
+              type="button"
+              aria-pressed={highContrast}
+              onClick={() => setHighContrast((enabled) => !enabled)}
+            >
+              {highContrast ? 'Kontras: tinggi' : 'Kontras: normal'}
+            </button>
             <button className="button button--primary" type="button" onClick={openNewMeeting}>
-              + New Meeting
+              + Meeting Baru
             </button>
           </div>
         </div>
@@ -175,7 +190,7 @@ export default function App() {
       </main>
 
       <footer className="app-footer">
-        <span>MeetNote AI · Sprint 11 — Validasi Integrasi & Kesiapan Rilis</span>
+        <span>MeetNote AI · Fase 1 — Bahasa Indonesia · Dari kalimat, kembali ke suara</span>
       </footer>
     </div>
   )

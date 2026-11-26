@@ -19,13 +19,13 @@ from typing import Any
 import httpx
 
 from ...core.config import settings
+from ..summary.prompts import build_summary_system_prompt
 from .base import (
     ACTION_ITEMS_FORMAT_NAME,
     ACTION_ITEMS_JSON_SCHEMA,
     ACTION_ITEMS_SYSTEM_PROMPT,
     SUMMARY_FORMAT_NAME,
     SUMMARY_JSON_SCHEMA,
-    SYSTEM_PROMPT,
     ActionItemExtractionResult,
     ActionItemInput,
     SummaryInput,
@@ -71,7 +71,9 @@ class OpenAiLlmProvider:
         payload, response_model = self._request_json(
             schema_name=SUMMARY_FORMAT_NAME,
             schema=SUMMARY_JSON_SCHEMA,
-            system_prompt=SYSTEM_PROMPT,
+            system_prompt=build_summary_system_prompt(
+                data, default_language=settings.LLM_OUTPUT_LANGUAGE
+            ),
             user_prompt=format_transcript(data),
         )
         return parse_summary_payload(payload, provider=self.name, model=response_model)

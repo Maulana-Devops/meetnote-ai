@@ -26,6 +26,8 @@ def get_app_config() -> AppConfigRead:
         allowed_extensions=sorted(ALLOWED_EXTENSIONS),
         stt_provider=settings.STT_PROVIDER,
         stt_configured=is_stt_configured(),
+        stt_language=settings.STT_LANGUAGE.strip() or "id",
+        summary_language=settings.LLM_OUTPUT_LANGUAGE.strip() or "id",
         diarization_provider=settings.DIARIZATION_PROVIDER,
         diarization_configured=is_diarization_configured(),
         llm_provider=settings.LLM_PROVIDER,

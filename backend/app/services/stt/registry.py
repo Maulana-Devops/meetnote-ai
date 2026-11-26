@@ -6,8 +6,10 @@ from numbers import Real
 from ...core.config import settings
 from .base import SttProvider, SttSegment
 from .errors import SttConfigurationError
+from .faster_whisper_provider import FasterWhisperSttProvider
 from .mock import MockSttProvider
 from .openai_provider import OpenAISttProvider
+from .whisper_cpp_provider import WhisperCppSttProvider
 
 
 def _mock_segments_from_env(raw: str) -> list[SttSegment]:
@@ -71,9 +73,15 @@ def create_provider(provider_name: str | None = None) -> SttProvider:
         return OpenAISttProvider()
     if name == "mock":
         return _create_mock_provider()
+    if name in {"faster_whisper", "local"}:
+        # `local` adalah alias singkat; keduanya memakai adapter yang sama.
+        return FasterWhisperSttProvider()
+    if name == "whisper_cpp":
+        return WhisperCppSttProvider()
 
     raise SttConfigurationError(
-        f"STT_PROVIDER '{name}' tidak dikenali. Pilih 'openai' atau 'mock'."
+        f"STT_PROVIDER '{name}' tidak dikenali. Pilih 'mock', 'openai', "
+        "'faster_whisper'/'local', atau 'whisper_cpp'."
     )
 
 

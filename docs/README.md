@@ -14,6 +14,22 @@
 - [Sprint 12 — Repository Setup, Release Packaging & Manual Acceptance](SPRINT12.md)
 - [Sprint 13 — Git Initialization Gate & Manual Acceptance](SPRINT13.md)
 - [Panduan Instalasi Lokal](INSTALLATION.md)
+- [Deployment On-Prem](DEPLOYMENT_ONPREM.md)
 - [Prosedur Backup & Restore](BACKUP_RESTORE.md)
 - [Manual Acceptance Testing](MANUAL_ACCEPTANCE_TEST.md)
 - [Arsitektur](ARCHITECTURE.md)
+- [Metodologi Benchmark Fase 1](BENCHMARK_METHOD.md)
+
+## Pembaruan setelah acceptance
+
+- **Fase 0 — Fondasi mutu:** Alembic baseline, CI GitHub Actions, Dependabot,
+  logging JSON + request ID, Docker Compose, `LICENSE`, `CONTRIBUTING.md`,
+  `CODEOWNERS`, dan `SECURITY.md`. Ringkasan ada di `README.md` bagian
+  "Fondasi mutu (Fase 0)".
+- **Fase 1 — Bahasa Indonesia & provider (terimplementasi, belum ada angka
+  publik):** STT lokal `faster-whisper` (CPU/int8), fallback `whisper.cpp`,
+  diarisasi `pyannote` opsional, kamus organisasi + normalisasi konservatif,
+  prompt ringkasan Indonesia, caption browser `id-ID`, toggle kontras, dan
+  satu contract test untuk mock/local. Metodologi ada di
+  [BENCHMARK_METHOD.md](BENCHMARK_METHOD.md); angka CER/WER/DER/latency
+  **belum diterbitkan** karena belum diukur pada korpus dengan consent.

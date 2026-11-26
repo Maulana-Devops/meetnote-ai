@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     # URL koneksi database SQLAlchemy (default: SQLite di folder backend)
     DATABASE_URL: str = "sqlite:///./meetnote.db"
+    # Jalankan migrasi Alembic saat startup. Set false hanya untuk test suite
+    # yang mengelola skema sendiri lewat Base.metadata.create_all().
+    RUN_DB_MIGRATIONS: bool = True
     # Port server backend
     BACKEND_PORT: int = 8000
     # Origin frontend yang diizinkan, dipisah koma. Default: Vite dev server.
@@ -51,6 +54,25 @@ class Settings(BaseSettings):
     MOCK_STT_TEXT: str = ""
     MOCK_STT_SEGMENTS_JSON: str = ""
 
+    # Fase 1 — STT lokal (faster-whisper). Tidak ada API key; dependency
+    # opsional dan di-import secara lazy agar CI tetap ringan. Default mock
+    # dipakai untuk test; pilih `faster_whisper` pada deployment on-prem.
+    STT_LOCAL_MODEL: str = "small"
+    STT_DEVICE: str = "cpu"
+    STT_COMPUTE_TYPE: str = "int8"
+    STT_LANGUAGE: str = "id"
+    STT_VAD: bool = True
+    STT_WORD_TIMESTAMPS: bool = True
+    STT_MODEL_DIR: str = str(_PROJECT_ROOT / "models" / "faster-whisper")
+    # whisper.cpp memakai server OpenAI-compatible; audio harus WAV 16-bit mono.
+    WHISPER_CPP_BASE_URL: str = "http://127.0.0.1:8080/v1"
+    WHISPER_CPP_MODEL: str = "whisper.cpp"
+
+    # Fase 1 — normalisasi Bahasa Indonesia.
+    INDONESIAN_VOCAB_PATH: str = str(
+        _PROJECT_ROOT / "config" / "indonesian-vocab.txt"
+    )
+
     # Sprint 5 — Speaker diarization. API key HANYA dibaca di backend.
     # `mock` menghasilkan label [MOCK] di provider dan dipakai oleh test.
     DIARIZATION_PROVIDER: str = "deepgram"
@@ -67,6 +89,11 @@ class Settings(BaseSettings):
     DIARIZATION_MIN_OVERLAP_RATIO: float = 0.5
     # Ambang detik tambahan; 0 berarti hanya butuh rasio di atas + overlap > 0.
     DIARIZATION_MIN_OVERLAP_SECONDS: float = 0.0
+    # Fase 1 — diarisasi pyannote opsional. Token HF tidak pernah masuk Git.
+    PYANNOTE_MODEL: str = "pyannote/speaker-diarization-community-1"
+    PYANNOTE_TOKEN: SecretStr = SecretStr("")
+    # Telemetri dimatikan secara eksplisit sebelum library di-import.
+    PYANNOTE_METRICS_ENABLED: bool = False
 
     # Sprint 7 — ringkasan AI. API key HANYA dibaca di backend.
     # `mock` menghasilkan ringkasan deterministik berawalan [MOCK] untuk test.
@@ -75,8 +102,8 @@ class Settings(BaseSettings):
     LLM_API_BASE_URL: str = "https://api.openai.com/v1"
     # Model harus mendukung Structured Outputs JSON schema (strict=true).
     LLM_MODEL: str = "gpt-4o-mini-2024-08-06"
-    # Kosong = ikuti bahasa transkrip. Bisa diisi mis. "Indonesia" atau "English".
-    LLM_OUTPUT_LANGUAGE: str = ""
+    # Fase 1: default Bahasa Indonesia. Kosong = ikuti bahasa transkrip.
+    LLM_OUTPUT_LANGUAGE: str = "Indonesia"
     LLM_TIMEOUT_SECONDS: float = 90.0
     # Batas karakter teks transkrip yang dikirim ke provider dalam satu request.
     LLM_MAX_INPUT_CHARACTERS: int = 24000

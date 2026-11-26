@@ -6,7 +6,7 @@ anomali storage. Tidak ada secret, path absolut, isi audio, atau transkrip yang
 dikembalikan.
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -25,7 +25,7 @@ def health_check() -> dict:
 
 
 @router.get("/health/diagnostics", tags=["Health"])
-def health_diagnostics(db: Session = Depends(get_db)) -> dict:
+def health_diagnostics(request: Request, db: Session = Depends(get_db)) -> dict:
     """Informasi diagnostik non-sensitif untuk operasional.
 
     - ``sqlite_foreign_keys``: 1 bila PRAGMA foreign_keys AKTIF pada koneksi.
@@ -39,6 +39,7 @@ def health_diagnostics(db: Session = Depends(get_db)) -> dict:
     return {
         "status": "healthy",
         "application": settings.APP_NAME,
+        "request_id": getattr(request.state, "request_id", "-"),
         "sqlite_foreign_keys": foreign_keys,
         "storage": audit_storage(db),
     }

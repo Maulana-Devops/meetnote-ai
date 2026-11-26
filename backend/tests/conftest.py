@@ -42,6 +42,9 @@ os.environ["LLM_MODEL"] = "mock-1"
 os.environ["LLM_OUTPUT_LANGUAGE"] = ""
 os.environ["LLM_TIMEOUT_SECONDS"] = "30"
 os.environ["LLM_MAX_INPUT_CHARACTERS"] = "24000"
+# Test mengelola skema sendiri lewat Base.metadata.create_all()/drop_all().
+# Alembic tidak dipakai supaya tabel alembic_version tidak tertinggal.
+os.environ["RUN_DB_MIGRATIONS"] = "false"
 
 from app.database.migrations import apply_additive_migrations  # noqa: E402
 from app.database.session import Base, SessionLocal, engine  # noqa: E402

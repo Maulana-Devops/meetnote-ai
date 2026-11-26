@@ -84,8 +84,11 @@ rekaman yang sudah tersimpan, bukan indikator `recording`/`paused` secara live.
 - Python 3.12
 - FastAPI
 - SQLAlchemy (SQLite)
+- Alembic (migrasi skema; baseline `0001`)
 - Pydantic / Pydantic Settings
 - httpx (HTTP client untuk provider STT & diarisasi)
+- GitHub Actions + Dependabot (CI dan pembaruan dependency)
+- Docker Compose (deployment on-prem)
 - reportlab (generator PDF; font TTF dibundling dalam paket)
 - pytest + pypdf (parser PDF untuk test)
 
@@ -114,7 +117,10 @@ meetnote-ai/
 │   │   ├── services/      # workflow + stt/ + diarization/ + llm/ + summary/
 │   │   │                  # + action_items/ + export.py
 │   │   └── main.py        # entry point FastAPI
-│   ├── tests/             # pengujian Sprint 1 s/d 10
+│   ├── alembic/           # env.py + versions/0001_baseline.py
+│   ├── alembic.ini
+│   ├── scripts/           # check_secrets.py, helper benchmark (Fase 1)
+│   ├── tests/             # pengujian Sprint 1 s/d 13
 │   ├── .env.example
 │   ├── requirements.txt
 │   └── main.py
@@ -132,8 +138,13 @@ meetnote-ai/
 │   └── .env.example
 ├── docs/
 ├── storage/               # audio hasil rekaman/upload (auto dibuat per meeting)
+├── .github/               # CI workflow, Dependabot, CODEOWNERS
 ├── .env.example
 ├── .gitignore
+├── CONTRIBUTING.md
+├── LICENSE
+├── SECURITY.md
+├── docker-compose.yml
 └── README.md
 ```
 
@@ -199,8 +210,9 @@ aplikasi pertama kali dijalankan. Tabel `audio_assets` (Sprint 3),
 memilikinya. Sprint 9 menambah kolom `run_token` pada keempat tabel job dan
 unique index `audio_assets.meeting_id` (hanya bila data lama tidak duplikat),
 serta mengaktifkan `PRAGMA foreign_keys=ON` untuk SQLite pada setiap koneksi.
-Tabel lama tidak dijatuhkan atau dibuat ulang; tidak ada Alembic. Detail ada di
-`docs/SPRINT9.md`.
+Tabel lama tidak dijatuhkan atau dibuat ulang. Sejak Fase 0, skema dikelola Alembic
+(baseline `0001`): database lama di-`stamp` tanpa mengubah data, database baru
+mendapat seluruh tabel dari baseline. Detail historis ada di `docs/SPRINT9.md`.
 
 ## Cara menjalankan frontend
 
@@ -486,6 +498,7 @@ LLM_MAX_INPUT_CHARACTERS=24000
 | Method | Path | Fungsi |
 | --- | --- | --- |
 | GET | `/api/v1/health` | Health check |
+| GET | `/api/v1/health/diagnostics` | Audit FK/storage read-only + `request_id` |
 | GET | `/api/v1/config` | Batas ukuran, format audio, info STT/diarisasi/LLM publik (tanpa API key) |
 | GET | `/api/v1/meetings` | Daftar meeting + metadata rekaman |
 | POST | `/api/v1/meetings` | Buat meeting (status awal `PENDING`) |
@@ -603,7 +616,8 @@ tersedia, tetapi:
   (`422`) — belum ada chunking/map-reduce;
 - background task berjalan di proses FastAPI yang sama — job yang tertinggal
   saat restart ditandai `FAILED` dan perlu dicoba ulang;
-- tidak ada Redis/Celery/RabbitMQ/Docker/microservice/local LLM;
+- tidak ada Redis/Celery/RabbitMQ/worker terpisah/local LLM; Docker Compose
+  tersedia untuk deployment on-prem, tetapi job tetap berjalan di proses FastAPI;
 - belum ada autentikasi, kolaborasi multi-user, PostgreSQL, atau deployment.
 
 Detail lengkap ada di `docs/SPRINT4.md`, `docs/SPRINT5.md`,
@@ -640,8 +654,8 @@ Detail lengkap ada di `docs/SPRINT4.md`, `docs/SPRINT5.md`,
 
 ## Batasan Sprint 12
 
-- Proyek **bukan** repository Git. Tidak ada `.git` di root/parent; tidak ada
-  remote. Inisialisasi Git hanya rekomendasi dan menunggu persetujuan.
+- Repository sudah diinisialisasi dan remote SSH `origin` terdaftar. Operasi Git
+  lanjutan (commit/push) tetap memerlukan persetujuan eksplisit.
 - `package-lock.json` sudah ada dan sinkron; `npm ci` dianjurkan, `npm update`
   tidak dijalankan.
 - Manual acceptance testing belum dijalankan. Checklist 26 skenario ada di
@@ -651,10 +665,10 @@ Detail lengkap ada di `docs/SPRINT4.md`, `docs/SPRINT5.md`,
 - Rilis lokal/internal siap; public release **belum** karena auth dan konkurensi
   antar-proses masih menjadi prasyarat.
 - Detail audit, packaging, dan hasil test ada di `docs/SPRINT12.md`.
-- Sprint 13: repository tetap belum diinisialisasi karena persetujuan Git write
-  ditolak. MAT-02/MAT-03/MAT-26 lulus dengan DB/storage test; pada akhir sprint
-  MAT-25 `BLOCKED` dan 22 skenario lain `NOT TESTED`. Lanjutan Phase A/B 24–26 Nov
-  menyelesaikan seluruh 26 skenario (PASS 26); detail ada di `docs/SPRINT13.md`.
+- Sprint 13: repository saat sprint masih belum diinisialisasi karena persetujuan
+  Git write ditolak. Lanjutan Phase A/B 24–26 Nov menyelesaikan seluruh 26 skenario
+  (**PASS 26 / FAIL 0 / BLOCKED 0 / NOT TESTED 0**) dan kemudian Git disetujui
+  serta kode di-push. Detail ada di `docs/SPRINT13.md`.
 
 ## Keamanan
 
@@ -679,5 +693,79 @@ Detail lengkap ada di `docs/SPRINT4.md`, `docs/SPRINT5.md`,
 ## Dokumentasi
 
 Daftar lengkap ada di `docs/README.md`: `SPRINT1.md`–`SPRINT13.md`,
-`ARCHITECTURE.md`, `INSTALLATION.md`, `BACKUP_RESTORE.md`, dan
-`MANUAL_ACCEPTANCE_TEST.md`. Detail Sprint 13 ada di `docs/SPRINT13.md`.
+`ARCHITECTURE.md`, `INSTALLATION.md`, `BACKUP_RESTORE.md`,
+`DEPLOYMENT_ONPREM.md`, dan `MANUAL_ACCEPTANCE_TEST.md`. Detail Sprint 13 ada di
+`docs/SPRINT13.md`.
+
+## Fondasi mutu (Fase 0)
+
+Perubahan berikut ditambahkan setelah acceptance final tanpa mengubah alur
+mock yang sudah PASS 26/26:
+
+- **Alembic baseline `0001`** — database baru dibuat dari baseline; database lama
+  di-`stamp` setelah migrasi aditif, tanpa DROP TABLE atau penghapusan data.
+  `python backend/scripts/verify_migrations.py` menguji kedua jalur pada DB
+  temporer dan dijalankan CI.
+- **CI GitHub Actions** — `pytest` backend, `npm run build` + `npm test` frontend,
+  verifikasi migrasi (fresh + legacy), `alembic history`, `alembic check` pada DB
+  temporer CI, dan secret scan `backend/scripts/check_secrets.py`.
+- **Dependabot** — pembaruan mingguan untuk `pip`, `npm`, dan GitHub Actions.
+- **Logging JSON + request ID** — setiap respons memiliki header `X-Request-ID`;
+  `/api/v1/health/diagnostics` mengembalikan nilai yang sama.
+- **Docker Compose on-prem** — backend + frontend via satu perintah, volume DB/
+  audio terpisah dari data di host. Lihat `docs/DEPLOYMENT_ONPREM.md`.
+- **Tata kelola** — `LICENSE` (MIT), `CONTRIBUTING.md`, `CODEOWNERS`, dan
+  `SECURITY.md`.
+
+Set `RUN_DB_MIGRATIONS=false` hanya untuk test suite yang mengelola skemanya
+sendiri. Deployment/produksi harus membiarkannya `true`.
+
+## Bahasa Indonesia (Fase 1)
+
+Milestone kedua melengkapi fondasi dengan **Bahasa Indonesia-first** tanpa
+mengubah skema JSON ringkasan (`overview`/`topics`/`decisions`) atau kontrak
+database:
+
+- **STT lokal** — `STT_PROVIDER=faster_whisper` memakai CPU + `int8`, Bahasa
+  Indonesia, VAD, dan timestamp asli. Fallback offline: `whisper.cpp` lewat
+  server OpenAI-compatible (WAV PCM 16-bit mono). Keduanya tidak memakai API key.
+- **Diarisasi opsional** — `DIARIZATION_PROVIDER=pyannote` dengan
+  `pyannote/speaker-diarization-community-1`; token Hugging Face hanya dibaca
+  dari environment backend, telemetri dimatikan, dan dependensinya lazy-import.
+- **Normalisasi konservatif** — kamus organisasi di
+  `config/indonesian-vocab.txt` dan helper di
+  `backend/app/services/indonesian/` merapikan spasi/singkatan umum tanpa
+  menerjemahkan, mengarang, atau mengubah referensi waktu. Ini bukan pemeriksa
+  EYD V otomatis; tetap perlu tinjauan manusia.
+- **Provenance** — setiap segmen punya `language` dan `source_ref` berbentuk
+  `audio#t=<start>-<end>` relatif terhadap rekaman. Frontend menampilkan label
+  `[MOCK]` untuk transkrip, diarisasi, ringkasan, dan action items simulasi.
+- **UX** — `lang="id"`, caption langsung `id-ID` dari browser saat merekam
+  (opsional, tidak disimpan), fokus keyboard `:focus-visible`, dan toggle
+  kontras tinggi. Mode tanpa akun tetap tersedia.
+
+Semua konfigurasi baru ada di `backend/.env.example` dan `.env.example`.
+Dependensi model bersifat opsional dan tidak dipasang di CI.
+
+### Benchmark: jujur belum diukur
+
+Helper CER/WER/DER/latency dan skrip
+`backend/scripts/benchmark_asr.py` sudah tersedia, tetapi **belum ada angka
+yang dipublikasikan** karena korpus dengan consent dan model/bobot lokal belum
+tersedia di lingkungan ini. Methodologinya ada di
+[docs/BENCHMARK_METHOD.md](docs/BENCHMARK_METHOD.md). Hasil `mock` hanya
+smoke test pipeline dan ditandai `[MOCK]`.
+
+## Arah pengembangan lanjutan
+
+Arah yang disepakati: **on-prem dulu**, **MIT open source**, target awal
+**komunitas/UMKM**, dengan ciri khas **notulen yang bisa diaudit** —
+*"Dari kalimat, kembali ke suara"* (setiap kalimat bisa kembali ke audio asal).
+SSO/SCIM/legal hold ditunda. Langkah berikutnya adalah menjalankan benchmark
+lokal pada korpus ber-consent lalu menerbitkan angka beserta kondisi host dan
+konfigurasinya.
+
+## Lisensi
+
+Kode MeetNote AI memakai [MIT License](LICENSE). Model, bobot, dan layanan pihak
+ketiga tetap mengikuti lisensi serta syarat penggunaan masing-masing.

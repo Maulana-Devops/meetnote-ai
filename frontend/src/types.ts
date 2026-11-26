@@ -32,6 +32,9 @@ export interface AppConfig {
   // Sprint 4: informasi provider STT yang aman dipublikasikan backend.
   stt_provider: string
   stt_configured: boolean
+  // Fase 1: bahasa STT/ringkasan yang aman dipublikasikan backend.
+  stt_language: string
+  summary_language: string
   // Sprint 5: informasi provider diarisasi (tanpa API key).
   diarization_provider: string
   diarization_configured: boolean

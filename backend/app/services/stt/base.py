@@ -13,11 +13,25 @@ from .errors import SttError
 
 @dataclass(frozen=True)
 class SttSegment:
-    """Satu segmen transkrip dengan timestamp dari provider (jika ada)."""
+    """Satu segmen transkrip dengan timestamp dari provider (jika ada).
+
+    ``language`` dan ``source_ref`` dipakai kontrak Fase 1. ``source_ref``
+    berbentuk referensi relatif terhadap rekaman meeting, bukan path absolut
+    ataupun nama file pengguna, sehingga aman ditampilkan ke UI.
+    """
 
     text: str
     start_seconds: float
     end_seconds: float
+    language: str = ""
+    source_ref: str = ""
+
+
+def audio_source_ref(start_seconds: float, end_seconds: float) -> str:
+    """Buat referensi audio berbasis waktu untuk satu meeting (= satu rekaman)."""
+    start = max(0.0, float(start_seconds))
+    end = max(start, float(end_seconds))
+    return f"audio#t={start:.3f}-{end:.3f}"
 
 
 @dataclass(frozen=True)
@@ -35,6 +49,7 @@ class SttResult:
     provider: str = "unknown"
     model: str = "unknown"
     has_timestamps: bool = False
+    language: str = ""
 
     @property
     def has_content(self) -> bool:

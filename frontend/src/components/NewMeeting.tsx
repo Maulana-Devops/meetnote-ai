@@ -2,10 +2,11 @@
 // 1. rekam langsung dari mikrofon (MediaRecorder), atau
 // 2. unggah file audio lokal (Sprint 3).
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import { createMeeting, uploadRecording } from '../api'
+import { useLiveCaption } from '../hooks/useLiveCaption'
 import { useMediaRecorder } from '../hooks/useMediaRecorder'
 import type { AudioAsset, Meeting } from '../types'
 import { formatBytes, formatDuration } from '../utils/format'
@@ -30,10 +31,17 @@ export function NewMeeting({ onBack, onCreated, onSaved, existingMeeting }: NewM
   const [hasSelectedFile, setHasSelectedFile] = useState(false)
 
   const recorder = useMediaRecorder()
+  const caption = useLiveCaption()
   const isBusy = recorder.status === 'recording' || recorder.status === 'paused'
   // Model hanya mendukung satu AudioAsset per meeting.
   const uploadDisabled = isBusy || !!recorder.result || saving
   const recorderDisabled = hasSelectedFile || saving
+
+  // Caption memakai mikrofon yang sama dengan recorder:hentikan bila rekaman
+  // dijeda/dihentikan agar tidak ada sumber audio aktif yang tersisa.
+  useEffect(() => {
+    if (recorder.status !== 'recording' && caption.listening) caption.stop()
+  }, [recorder.status, caption.listening, caption.stop])
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -177,6 +185,42 @@ export function NewMeeting({ onBack, onCreated, onSaved, existingMeeting }: NewM
             </div>
 
             {recorder.error && <p className="inline-error" role="alert">{recorder.error}</p>}
+
+            <div className="live-caption">
+              <p className="muted">
+                Caption langsung (id-ID) dari browser — opsional. Hanya bantuan saat
+                merekam; tidak dikirim ke server dan bukan sumber notulen yang diaudit.
+              </p>
+              {caption.supported ? (
+                <div className="button-row">
+                  <button
+                    className="button button--ghost"
+                    type="button"
+                    onClick={caption.listening ? caption.stop : caption.start}
+                    disabled={recorder.status !== 'recording'}
+                    aria-pressed={caption.listening}
+                  >
+                    {caption.listening ? '■ Hentikan Caption' : '● Mulai Caption'}
+                  </button>
+                  {caption.text && (
+                    <button className="button button--ghost" type="button" onClick={caption.reset}>
+                      Hapus Caption
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <p className="muted">
+                  Browser ini tidak mendukung caption langsung. Rekaman dan transkripsi
+                  tetap dapat digunakan seperti biasa.
+                </p>
+              )}
+              {caption.text && (
+                <p className="live-caption__text" aria-live="polite" aria-atomic="true">
+                  {caption.text}
+                </p>
+              )}
+              {caption.error && <p className="inline-error" role="alert">{caption.error}</p>}
+            </div>
           </div>
 
           {recorder.result && (

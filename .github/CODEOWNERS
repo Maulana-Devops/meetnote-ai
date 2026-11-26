@@ -1,0 +1,7 @@
+# Pemilik default untuk seluruh repository.
+* @Maulana-Devops
+
+# Area yang sensitif: perubahan sebaiknya ditinjau lebih dulu.
+/backend/app/database/ @Maulana-Devops
+/backend/app/core/ @Maulana-Devops
+/.github/workflows/ @Maulana-Devops

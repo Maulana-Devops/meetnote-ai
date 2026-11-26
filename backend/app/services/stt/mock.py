@@ -8,7 +8,7 @@ dan bisa dipilih lewat ``STT_PROVIDER=mock`` untuk mencoba alur UI tanpa API key
 from pathlib import Path
 
 from ...core.config import settings
-from .base import SttResult, SttSegment
+from .base import SttResult, SttSegment, audio_source_ref
 from .errors import SttError, SttInvalidResultError
 
 
@@ -59,12 +59,17 @@ class MockSttProvider:
         if self._error is not None:
             raise self._error
 
+        language = settings.STT_LANGUAGE.strip() or "id"
         if self._segments is not None:
             segments = [
                 SttSegment(
                     text=f"[MOCK] {segment.text}",
                     start_seconds=segment.start_seconds,
                     end_seconds=segment.end_seconds,
+                    language=language,
+                    source_ref=audio_source_ref(
+                        segment.start_seconds, segment.end_seconds
+                    ),
                 )
                 for segment in self._segments
             ]
@@ -78,6 +83,7 @@ class MockSttProvider:
                 provider=self.name,
                 model=self.model,
                 has_timestamps=has_timestamps,
+                language=language,
             )
 
         if self._text:
@@ -87,6 +93,7 @@ class MockSttProvider:
                 provider=self.name,
                 model=self.model,
                 has_timestamps=False,
+                language=language,
             )
 
         raise SttInvalidResultError(

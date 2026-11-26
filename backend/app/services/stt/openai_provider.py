@@ -23,7 +23,7 @@ from pathlib import Path
 import httpx
 
 from ...core.config import settings
-from .base import SttResult, SttSegment
+from .base import SttResult, SttSegment, audio_source_ref
 from .errors import (
     SttAuthenticationError,
     SttConfigurationError,
@@ -163,7 +163,12 @@ class OpenAISttProvider:
                         f"Timestamp segmen #{index + 1} tidak valid."
                     ) from exc
                 segments.append(
-                    SttSegment(text=segment_text, start_seconds=start, end_seconds=end)
+                    SttSegment(
+                        text=segment_text,
+                        start_seconds=start,
+                        end_seconds=end,
+                        source_ref=audio_source_ref(start, end),
+                    )
                 )
 
         if not text and not segments:

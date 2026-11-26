@@ -21,24 +21,31 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.core.logging import RequestIDMiddleware
 from app.database.session import Base, engine
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Buat tabel database saat aplikasi start."""
-    # Import di sini agar model terdaftar sebelum create_all dipanggil
+    """Siapkan logging, skema database, dan recovery job saat aplikasi start."""
+    # Import di sini agar model terdaftar sebelum skema dibuat/diverifikasi.
     from app import models  # noqa: F401
-    from app.database.migrations import apply_additive_migrations
+    from app.core.logging import configure_logging
+    from app.database.migrations import apply_additive_migrations, run_migrations
     from app.services.action_items.workflow import recover_stuck_action_items
     from app.services.diarization.workflow import recover_stuck_diarizations
     from app.services.summary.workflow import recover_stuck_summaries
     from app.services.transcription import recover_stuck_transcriptions
 
-    # create_all hanya membuat tabel baru; tabel lama dan datanya tidak diubah.
-    Base.metadata.create_all(bind=engine)
-    # Sprint 5: tambahan kolom aditif untuk database yang sudah ada.
-    apply_additive_migrations()
+    configure_logging()
+
+    if settings.RUN_DB_MIGRATIONS:
+        # Alembic menangani DB baru dan DB lama tanpa menghapus data.
+        run_migrations()
+    else:
+        # Test suite mengelola skema sendiri (lihat tests/conftest.py).
+        Base.metadata.create_all(bind=engine)
+        apply_additive_migrations()
 
     # Sprint 4/5/7/8: background task in-process hilang saat restart. Tandai job
     # yang masih PROCESSING sebagai FAILED agar bisa dicoba lagi dari UI.
@@ -85,6 +92,8 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Accept"],
 )
+# Request ID harus aktif untuk semua response, termasuk error.
+app.add_middleware(RequestIDMiddleware)
 
 # Daftarkan router v1
 app.include_router(api_router)

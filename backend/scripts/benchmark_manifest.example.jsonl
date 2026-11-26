@@ -1,0 +1,4 @@
+# Contoh manifest benchmark (Fase 1). Salin dan isi dengan korpus Anda sendiri.
+# Path memakai placeholder publik; jangan menulis path absolut/nama file asli.
+# Baris komentar dan baris kosong diabaikan oleh benchmark_asr.py.
+{"audio_path": "<folder-rekaman>/<rekaman-pengguna>.wav", "reference_text": "Halo semua, kita mulai rapat.", "reference_segments": [{"text": "Halo semua, kita mulai rapat.", "start_seconds": 0, "end_seconds": 3}], "reference_diarization": [{"speaker": "A", "start_seconds": 0, "end_seconds": 3}]}

@@ -1,0 +1,10 @@
+# Kamus organisasi untuk normalisasi transkrip Bahasa Indonesia (Fase 1).
+# Format: bentuk-yang-sering-salah=bentuk-baku
+# Baris komentar diabaikan. Isi dengan nama/singkatan/istilah internal Anda.
+# Jangan memasukkan data pribadi atau rahasia di sini.
+
+meetnote=MeetNote
+eyd=EYD
+sop=SOP
+kpi=KPI
+umkm=UMKM

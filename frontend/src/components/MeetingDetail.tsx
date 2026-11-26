@@ -1160,6 +1160,11 @@ export function MeetingDetail({
                 </div>
               </dl>
 
+              {transcription.provider === 'mock' && (
+                <p className="notice" role="status">
+                  [MOCK] Provider simulasi sedang dipakai. Ini bukan transkripsi sungguhan.
+                </p>
+              )}
               {transcription.error && (
                 <p className="inline-error" role="alert">
                   Transkripsi gagal: {transcription.error}

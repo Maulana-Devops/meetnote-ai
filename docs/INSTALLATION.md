@@ -16,8 +16,10 @@ Versi terverifikasi pada lingkungan pengembangan:
 | Browser | Chrome/Edge/Firefox/Safari terbaru | Perlu `MediaRecorder` untuk rekaman langsung |
 | Mikrofon | Terhubung | Hanya untuk rekaman langsung |
 
-Git **tidak diperlukan** untuk menjalankan aplikasi. Proyek saat ini bukan
-repository Git; lihat `docs/SPRINT12.md` sebelum memutuskan inisialisasi Git.
+Git **tidak diperlukan** untuk menjalankan aplikasi. Repository sudah
+diinisialisasi dan memiliki remote SSH, tetapi operasi Git lanjutan tetap
+memerlukan persetujuan eksplisit. Untuk deployment on-prem satu perintah, lihat
+`docs/DEPLOYMENT_ONPREM.md`; panduan PowerShell manual di bawah tetap berlaku.
 
 ## 2. Struktur yang dipakai saat instalasi
 
@@ -59,8 +61,9 @@ Policy. Selalu panggil interpreter venv secara langsung:
 .\.venv\Scripts\python.exe main.py
 ```
 
-Semua dependency backend sudah dipatok eksak di `requirements.txt`. Jangan
-menjalankan upgrade dependency massal.
+Semua dependency backend **wajib** sudah dipatok eksak di `requirements.txt`.
+Dependency model (Fase 1) bersifat opsional dan dipasang manual sesuai bagian
+berikut. Jangan menjalankan upgrade dependency massal.
 
 ## 4. Konfigurasi backend
 
@@ -92,6 +95,40 @@ Hasil akan ditandai `[MOCK]` dan bukan hasil AI sungguhan.
 - Jika menjalankan `npm run preview` (port 4173), tambahkan
   `http://localhost:4173` ke `CORS_ALLOWED_ORIGINS`.
 - Set `DEBUG=true` hanya jika ingin auto-reload saat development.
+
+### Opsi Bahasa Indonesia tanpa API key (Fase 1)
+
+Untuk memakai STT lokal pada host sendiri, pasang dependency opsional lalu
+ubah `backend/.env`:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install faster-whisper
+notepad .env
+```
+
+```dotenv
+STT_PROVIDER=faster_whisper
+STT_LANGUAGE=id
+STT_DEVICE=cpu
+STT_COMPUTE_TYPE=int8
+STT_VAD=true
+STT_WORD_TIMESTAMPS=true
+STT_MODEL_DIR=../models/faster-whisper
+```
+
+Model/bobot diunduh pada pemakaian pertama ke folder model (bukan ke Git).
+Jika memakai `whisper.cpp`, jalankan server OpenAI-compatible-nya lalu set
+`STT_PROVIDER=whisper_cpp`, `WHISPER_CPP_BASE_URL`, dan `WHISPER_CPP_MODEL`;
+audionya harus WAV PCM 16-bit mono.
+
+Diarisasi lokal `DIARIZATION_PROVIDER=pyannote` juga opsional. Pasang
+`pyannote-audio` manual, terima conditions model di Hugging Face, lalu isi
+`PYANNOTE_TOKEN` **hanya di `backend/.env`**. Jangan menempelkan token ke chat,
+file publik, atau variabel `VITE_*`. Telemetri dimatikan dengan
+`PYANNOTE_METRICS_ENABLED=false`.
+
+Belum ada angka CER/WER/DER/latency yang diterbitkan; lihat
+`docs/BENCHMARK_METHOD.md` sebelum mengklaim kualitas.
 
 ## 5. Menjalankan backend
 

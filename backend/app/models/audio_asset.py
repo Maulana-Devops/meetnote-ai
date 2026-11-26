@@ -7,7 +7,7 @@ database. Tabel ini hanya menyimpan metadata dan path relatif.
 import datetime
 import uuid
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, func
+from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database.session import Base
@@ -17,6 +17,10 @@ class AudioAsset(Base):
     """Tabel `audio_assets` (relasi satu-ke-satu dengan Meeting)."""
 
     __tablename__ = "audio_assets"
+    # Satu meeting = satu rekaman. Index ini juga dibuat oleh migrasi aditif
+    # lama; dideklarasikan di sini supaya metadata ORM dan baseline Alembic
+    # menggambarkan skema yang sama.
+    __table_args__ = (Index("uq_audio_asset_meeting", "meeting_id", unique=True),)
 
     id: Mapped[str] = mapped_column(
         String(36),

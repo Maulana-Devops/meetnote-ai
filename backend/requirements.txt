@@ -5,6 +5,7 @@ python-multipart==0.0.20
 
 # Database & validation
 sqlalchemy==2.0.42
+alembic==1.14.1
 pydantic==2.11.4
 pydantic-settings==2.9.1
 
@@ -19,3 +20,9 @@ reportlab==4.4.10
 pytest==8.3.5
 # Parser PDF untuk membuktikan hasil export dapat dibaca (khusus test).
 pypdf==7.1.1
+
+# Fase 1 — OPSIONAL, sengaja tidak dipasang di CI/installasi dasar:
+#   faster-whisper  -> STT_PROVIDER=faster_whisper / local
+#   pyannote-audio  -> DIARIZATION_PROVIDER=pyannote
+# Pasang manual di host on-prem, validasi versinya di lingkungan Anda, dan
+# jangan commit bobot/model. Keduanya di-import secara lazy oleh provider.

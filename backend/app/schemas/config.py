@@ -12,6 +12,9 @@ class AppConfigRead(BaseModel):
     # Sprint 4: info STT yang aman dipublikasikan (tanpa API key).
     stt_provider: str
     stt_configured: bool
+    # Fase 1: bahasa yang dipakai STT/ringkasan (bukan secret/path absolut).
+    stt_language: str
+    summary_language: str
     # Sprint 5: info diarisasi yang aman dipublikasikan (tanpa API key).
     diarization_provider: str
     diarization_configured: bool

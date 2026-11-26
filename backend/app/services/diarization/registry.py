@@ -5,6 +5,7 @@ from .base import DiarizationProvider
 from .deepgram_provider import DeepgramDiarizationProvider
 from .errors import DiarizationConfigurationError
 from .mock import MockDiarizationProvider
+from .pyannote_provider import PyannoteDiarizationProvider
 
 
 def create_provider(provider_name: str | None = None) -> DiarizationProvider:
@@ -15,9 +16,12 @@ def create_provider(provider_name: str | None = None) -> DiarizationProvider:
         return DeepgramDiarizationProvider()
     if name == "mock":
         return MockDiarizationProvider()
+    if name == "pyannote":
+        return PyannoteDiarizationProvider()
 
     raise DiarizationConfigurationError(
-        f"DIARIZATION_PROVIDER '{name}' tidak dikenali. Pilih 'deepgram' atau 'mock'."
+        f"DIARIZATION_PROVIDER '{name}' tidak dikenali. "
+        "Pilih 'mock', 'deepgram', atau 'pyannote'."
     )
 
 
