@@ -241,6 +241,14 @@ storage/meetings/{meeting_id}/recording-{uuid}.{ext}
 - **Background in-process:** FastAPI `BackgroundTasks` dipakai untuk keempat job.
   Task membuka `SessionLocal()` sendiri, menyimpan hasil/error. Tidak ada
   Redis/Celery/RabbitMQ/Docker/microservice.
+- **Retry provider (backoff + jitter):** `services/provider_retry.py` mengulang
+  hanya error sementara (429, timeout, gangguan server/respons provider) untuk
+  STT, diarisasi, ringkasan, dan action items. Error konfigurasi, autentikasi,
+  format tidak didukung, dan validasi hasil tidak diulang. Default 3 attempts,
+  backoff 1s→2s→4s dengan batas 8s dan jitter 0.5–1.0. Percobaan gagal hanya
+  dicatat sebagai kategori error; pesan akhir `job.error` tetap sama seperti
+  sebelumnya. `run_token` dicek ulang setelah retry sehingga task lama tidak
+  menimpa job baru. Set `PROVIDER_RETRY_ATTEMPTS=1` untuk mematikan retry.
 - **Restart recovery:** `recover_stuck_transcriptions()`,
   `recover_stuck_diarizations()`, `recover_stuck_summaries()`, dan
   `recover_stuck_action_items()` menandai job `PROCESSING` yang tertinggal

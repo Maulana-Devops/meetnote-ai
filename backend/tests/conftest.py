@@ -42,6 +42,9 @@ os.environ["LLM_MODEL"] = "mock-1"
 os.environ["LLM_OUTPUT_LANGUAGE"] = ""
 os.environ["LLM_TIMEOUT_SECONDS"] = "30"
 os.environ["LLM_MAX_INPUT_CHARACTERS"] = "24000"
+# Retry diuji terpisah dengan sleep di-mock. Job test tetap deterministik dan
+# tidak menunggu backoff saat provider error disengaja.
+os.environ["PROVIDER_RETRY_ATTEMPTS"] = "1"
 # Test mengelola skema sendiri lewat Base.metadata.create_all()/drop_all().
 # Alembic tidak dipakai supaya tabel alembic_version tidak tertinggal.
 os.environ["RUN_DB_MIGRATIONS"] = "false"

@@ -52,6 +52,7 @@ from ..llm.base import (
 )
 from ..llm.errors import LlmError, LlmInvalidResultError
 from ..llm.registry import create_provider
+from ..provider_retry import retry_transient
 
 # Seam yang sama dengan Sprint 4/5/7 agar test bisa menyuntik provider mock.
 _create_provider = create_provider
@@ -470,7 +471,11 @@ def run_action_items(meeting_id: uuid.UUID) -> None:
         try:
             data = _build_input(meeting, segments, speakers)
             provider = _create_provider(job.provider or settings.LLM_PROVIDER)
-            result: ActionItemExtractionResult = provider.extract_action_items(data)
+            result: ActionItemExtractionResult = retry_transient(
+                lambda: provider.extract_action_items(data),
+                job_type="action_items",
+                meeting_id=str(meeting_id),
+            )
             normalized = _validate_result(result, segments, speakers)
         except LlmError as exc:
             db.rollback()

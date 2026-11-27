@@ -697,6 +697,10 @@ Detail lengkap ada di `docs/SPRINT4.md`, `docs/SPRINT5.md`,
   dinonaktifkan agar tidak menghapus data.
 - Frontend membatasi panjang/konten pesan error, hanya memuat audio dari origin
   backend yang sama, serta memakai header keamanan dasar pada Nginx.
+- Job background mengulang hanya kegagalan provider sementara (429/timeout/5xx)
+  dengan backoff + jitter maksimal 3 kali. Error konfigurasi/autentikasi/format
+  tidak diulang, pesan error untuk pengguna tidak berubah, dan log hanya memuat
+  kategori error.
 
 ## Dokumentasi
 

@@ -40,6 +40,7 @@ from ..llm.base import (
 )
 from ..llm.errors import LlmError, LlmInvalidResultError
 from ..llm.registry import create_provider
+from ..provider_retry import retry_transient
 
 # Diuji/monkeypatch di test agar provider mock bisa disuntik deterministik.
 _create_provider = create_provider
@@ -445,7 +446,11 @@ def run_summary(meeting_id: uuid.UUID) -> None:
         try:
             data = _build_input(meeting, segments)
             provider = _create_provider(job.provider or settings.LLM_PROVIDER)
-            result: SummaryResult = provider.summarize(data)
+            result: SummaryResult = retry_transient(
+                lambda: provider.summarize(data),
+                job_type="summary",
+                meeting_id=str(meeting_id),
+            )
             topics, decisions = _validate_references(result, segments)
         except LlmError as exc:
             db.rollback()

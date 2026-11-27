@@ -25,6 +25,7 @@ from ..models.transcript import TranscriptSegment, TranscriptionJob, Transcripti
 from ..schemas.transcription import TranscriptionRead
 from . import job_guard
 from .diarization.workflow import clear_diarization
+from .provider_retry import retry_transient
 from .stt.base import SttResult, SttSegment, audio_source_ref
 from .stt.errors import (
     SttError,
@@ -377,10 +378,14 @@ def run_transcription(meeting_id: uuid.UUID) -> None:
 
         try:
             provider = _create_provider(job.provider or settings.STT_PROVIDER)
-            result = provider.transcribe(
-                audio_path=audio_path,
-                filename=asset.storage_filename,
-                mime_type=asset.mime_type,
+            result = retry_transient(
+                lambda: provider.transcribe(
+                    audio_path=audio_path,
+                    filename=asset.storage_filename,
+                    mime_type=asset.mime_type,
+                ),
+                job_type="transcription",
+                meeting_id=str(meeting_id),
             )
             segments, has_timestamps = _validate_and_normalize(result)
         except SttError as exc:

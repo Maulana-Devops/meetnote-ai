@@ -28,6 +28,7 @@ from ...models.meeting import Meeting
 from ...models.transcript import TranscriptSegment, TranscriptionJob, TranscriptionStatus
 from ...schemas.diarization import DiarizationRead, SpeakerRead
 from .. import job_guard
+from ..provider_retry import retry_transient
 from .base import DiarizationResult, DiarizationTurn
 from .errors import (
     DiarizationError,
@@ -487,10 +488,14 @@ def run_diarization(meeting_id: uuid.UUID) -> None:
 
         try:
             provider = _create_provider(job.provider or settings.DIARIZATION_PROVIDER)
-            result: DiarizationResult = provider.diarize(
-                audio_path=audio_path,
-                filename=asset.storage_filename,
-                mime_type=asset.mime_type,
+            result: DiarizationResult = retry_transient(
+                lambda: provider.diarize(
+                    audio_path=audio_path,
+                    filename=asset.storage_filename,
+                    mime_type=asset.mime_type,
+                ),
+                job_type="diarization",
+                meeting_id=str(meeting_id),
             )
             turns = _validate_turns(result.turns)
             labels = assign_speaker_labels(turns)

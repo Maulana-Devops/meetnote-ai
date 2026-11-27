@@ -6,7 +6,7 @@ sehingga secret / setelan tidak perlu ditulis langsung di dalam kode.
 
 from pathlib import Path
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Path absolut ke root proyek: backend/app/core/config.py -> naik 3 level.
@@ -109,6 +109,12 @@ class Settings(BaseSettings):
     LLM_TIMEOUT_SECONDS: float = 90.0
     # Batas karakter teks transkrip yang dikirim ke provider dalam satu request.
     LLM_MAX_INPUT_CHARACTERS: int = 24000
+
+    # Retry/backoff untuk job background saat provider gagal sementara.
+    # attempts=1 berarti retry dimatikan (dipakai oleh test suite).
+    PROVIDER_RETRY_ATTEMPTS: int = Field(default=3, ge=1)
+    PROVIDER_RETRY_BASE_SECONDS: float = Field(default=1.0, gt=0)
+    PROVIDER_RETRY_MAX_SECONDS: float = Field(default=8.0, gt=0)
 
     # Muat nilai dari file .env jika ada. File .env tidak ikut ter-commit ke Git.
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
