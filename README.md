@@ -738,8 +738,10 @@ database:
   menerjemahkan, mengarang, atau mengubah referensi waktu. Ini bukan pemeriksa
   EYD V otomatis; tetap perlu tinjauan manusia.
 - **Provenance** — setiap segmen punya `language` dan `source_ref` berbentuk
-  `audio#t=<start>-<end>` relatif terhadap rekaman. Frontend menampilkan label
-  `[MOCK]` untuk transkrip, diarisasi, ringkasan, dan action items simulasi.
+  `audio#t=<start>-<end>` relatif terhadap rekaman. Referensi ini ikut ke export
+  TXT/PDF berdampingan dengan label waktu yang mudah dibaca; frontend
+  menampilkan label `[MOCK]` untuk transkrip, diarisasi, ringkasan, dan action
+  items simulasi.
 - **UX** — `lang="id"`, caption langsung `id-ID` dari browser saat merekam
   (opsional, tidak disimpan), fokus keyboard `:focus-visible`, dan toggle
   kontras tinggi. Mode tanpa akun tetap tersedia.

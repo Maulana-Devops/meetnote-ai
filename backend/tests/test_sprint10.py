@@ -26,6 +26,7 @@ from app.models.diarization import DiarizationJob, DiarizationStatus, Speaker
 from app.models.meeting import Meeting, MeetingStatus
 from app.models.summary import MeetingSummary, SummaryJob, SummaryStatus
 from app.models.transcript import TranscriptSegment, TranscriptionJob, TranscriptionStatus
+from app.services.export import _source_ref
 
 
 # ---------------------------------------------------------------------------
@@ -253,6 +254,29 @@ def test_txt_contains_all_sections_and_stored_data(s2_db, s2_client):
     assert "[0:04 - 0:06] Speaker 1 (Andi): Terima kasih." in text
 
 
+def test_txt_keeps_audio_provenance_alongside_human_clock(s2_db, s2_client):
+    meeting_id = _full_meeting(s2_db, "Rapat Provenance")
+    text = s2_client.get(f"/api/v1/meetings/{meeting_id}/export/txt").text
+
+    # Label waktu manusia tidak diganti oleh referensi mesin.
+    assert "Sumber: 0:00\u20130:02" in text
+    assert "[0:00 - 0:02] Speaker 1 (Andi): Halo \u00e9, mulai rapat." in text
+    assert "Sumber: audio#t=" not in text
+
+    for reference in (
+        "audio#t=0.000-2.000",
+        "audio#t=2.000-4.000",
+        "audio#t=4.000-6.000",
+    ):
+        assert reference in text
+
+    # Topik/segmen memakai 'Referensi audio:', action item memakai spasi
+    # perataan yang sama dengan baris 'Sumber' di tabel.
+    assert "Referensi audio: audio#t=0.000-2.000" in text
+    assert "Referensi audio : audio#t=0.000-2.000" in text
+    assert "rapat.wav" not in text  # provenance tidak membocorkan nama file
+
+
 def test_partial_data_uses_explicit_placeholders(s2_db, s2_client):
     meeting = _meeting(s2_db, "Rapat Kosong")
     response = s2_client.get(f"/api/v1/meetings/{meeting.id}/export/txt")
@@ -301,6 +325,29 @@ def test_pdf_is_valid_and_text_is_extractable(s2_db, s2_client):
     # Tanda hubung panjang dari data diubah ke ASCII agar font tetap mendukung.
     assert "\u2014" not in text
     assert "menit terakhir" in text
+
+
+def test_pdf_keeps_audio_provenance_alongside_human_clock(s2_db, s2_client):
+    meeting_id = _full_meeting(s2_db, "Rapat Provenance PDF")
+    response = s2_client.get(f"/api/v1/meetings/{meeting_id}/export/pdf")
+    assert response.status_code == 200
+
+    reader = PdfReader(io.BytesIO(response.content))
+    text = "\n".join(page.extract_text() or "" for page in reader.pages)
+
+    assert "Provenance: audio#t=<mulai>-<akhir>" in text
+    for reference in (
+        "audio#t=0.000-2.000",
+        "audio#t=2.000-4.000",
+        "audio#t=4.000-6.000",
+    ):
+        assert reference in text, reference
+
+    # Label waktu manusia tetap terbaca di ringkasan dan lampiran transkrip.
+    assert "0:00-0:02" in text
+    assert "[0:00 - 0:02]" in text
+    assert "Halo \u00e9, mulai rapat." in text
+    assert "rapat.wav" not in text
 
 
 def test_pdf_escapes_xml_only_for_paragraphs(s2_db, s2_client):
@@ -381,3 +428,13 @@ def test_export_is_read_only_and_leaves_no_temp_files(s2_db, s2_client, monkeypa
 
     assert _snapshot(s2_db) == before_db
     assert _storage_files() == before_files
+
+
+def test_source_ref_helpers_tolak_waktu_tidak_valid():
+    assert _source_ref(None, 2.0) == ""
+    assert _source_ref("bukan-angka", 2.0) == ""
+    assert _source_ref(-1.0, 2.0) == ""
+    assert _source_ref(float("nan"), 2.0) == ""
+    assert _source_ref(float("inf"), 2.0) == ""
+    assert _source_ref(0.5, 2.25) == "audio#t=0.500-2.250"
+    assert _source_ref(3.0, 2.0) == "audio#t=3.000-3.000"

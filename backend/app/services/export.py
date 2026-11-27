@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import io
 import logging
+import math
 import re
 import unicodedata
 import uuid
@@ -33,6 +34,7 @@ from ..models.diarization import DiarizationJob, DiarizationStatus, Speaker
 from ..models.meeting import Meeting
 from ..models.summary import MeetingSummary, SummaryJob, SummaryStatus
 from ..models.transcript import TranscriptionJob, TranscriptionStatus, TranscriptSegment
+from .stt.base import audio_source_ref
 
 logger = logging.getLogger("meetnote.export")
 
@@ -117,12 +119,14 @@ class SummaryItemLine:
     title: str
     detail: str
     source: str
+    source_ref: str = ""
 
 
 @dataclass(frozen=True)
 class DecisionLine:
     text: str
     source: str
+    source_ref: str = ""
 
 
 @dataclass(frozen=True)
@@ -134,6 +138,7 @@ class ActionLine:
     status: str
     source: str
     is_manually_edited: bool
+    source_ref: str = ""
 
 
 @dataclass(frozen=True)
@@ -141,6 +146,7 @@ class SegmentLine:
     timestamp: str
     speaker: str
     text: str
+    source_ref: str = ""
 
 
 @dataclass(frozen=True)
@@ -213,6 +219,25 @@ def _source_clock(start: object, end: object) -> str:
     return f"{format_clock(start_value)}–{format_clock(end_value)}"
 
 
+def _source_ref(start: object, end: object) -> str:
+    """Provenance kanonik ``audio#t=...``, atau '' bila waktu tidak valid.
+
+    Memakai formatter yang sama dengan segmen STT supaya referensi di export
+    identik dengan referensi di UI. Tidak membuka audio dan tidak mengarang
+    waktu bila data tersimpan tidak lengkap.
+    """
+    try:
+        start_value = float(start)
+        end_value = float(end)
+    except (TypeError, ValueError):
+        return ""
+    if not (math.isfinite(start_value) and math.isfinite(end_value)):
+        return ""
+    if start_value < 0 or end_value < 0:
+        return ""
+    return audio_source_ref(start_value, end_value)
+
+
 def _as_text(value: object) -> str:
     if value is None:
         return ""
@@ -271,24 +296,24 @@ def load_notulen(db: Session, meeting_id: uuid.UUID) -> NotulenData:
     decisions: list[DecisionLine] = []
     if summary_db is not None:
         for raw in list(summary_db.topics or []):
+            start = _dict_value(raw, "start_seconds")
+            end = _dict_value(raw, "end_seconds")
             topics.append(
                 SummaryItemLine(
                     title=_as_text(_dict_value(raw, "title")),
                     detail=_as_text(_dict_value(raw, "detail")),
-                    source=_source_clock(
-                        _dict_value(raw, "start_seconds"),
-                        _dict_value(raw, "end_seconds"),
-                    ),
+                    source=_source_clock(start, end),
+                    source_ref=_source_ref(start, end),
                 )
             )
         for raw in list(summary_db.decisions or []):
+            start = _dict_value(raw, "start_seconds")
+            end = _dict_value(raw, "end_seconds")
             decisions.append(
                 DecisionLine(
                     text=_as_text(_dict_value(raw, "text")),
-                    source=_source_clock(
-                        _dict_value(raw, "start_seconds"),
-                        _dict_value(raw, "end_seconds"),
-                    ),
+                    source=_source_clock(start, end),
+                    source_ref=_source_ref(start, end),
                 )
             )
 
@@ -322,6 +347,7 @@ def load_notulen(db: Session, meeting_id: uuid.UUID) -> NotulenData:
                 status=_as_text(item.status) or "—",
                 source=_source_clock(item.start_seconds, item.end_seconds),
                 is_manually_edited=bool(item.is_manually_edited),
+                source_ref=_source_ref(item.start_seconds, item.end_seconds),
             )
         )
 
@@ -348,6 +374,7 @@ def load_notulen(db: Session, meeting_id: uuid.UUID) -> NotulenData:
                 ),
                 speaker=speaker_text,
                 text=_as_text(segment.text),
+                source_ref=_source_ref(segment.start_seconds, segment.end_seconds),
             )
         )
 
@@ -406,6 +433,7 @@ def render_txt(data: NotulenData) -> str:
         f"Status meeting  : {data.meeting_status}",
         f"ID meeting      : {data.meeting_id}",
         f"Durasi rekaman  : {data.duration_seconds or _NOT_AVAILABLE}",
+        "Referensi audio : audio#t=<mulai>-<akhir> dalam detik, relatif terhadap rekaman ini.",
     ]
     for label, value in data.statuses.items():
         lines.append(f"Status {label:<14}: {value}")
@@ -431,6 +459,8 @@ def render_txt(data: NotulenData) -> str:
                 lines.append(f"   {topic.detail}")
             if topic.source:
                 lines.append(f"   Sumber: {topic.source}")
+            if topic.source_ref:
+                lines.append(f"   Referensi audio: {topic.source_ref}")
     else:
         lines.append(_NOT_AVAILABLE)
 
@@ -440,6 +470,8 @@ def render_txt(data: NotulenData) -> str:
             lines.append(f"{index}. {decision.text or '(keputusan tanpa teks)'}")
             if decision.source:
                 lines.append(f"   Sumber: {decision.source}")
+            if decision.source_ref:
+                lines.append(f"   Referensi audio: {decision.source_ref}")
     else:
         lines.append(_NOT_AVAILABLE)
 
@@ -453,6 +485,8 @@ def render_txt(data: NotulenData) -> str:
             lines.append(f"   Deadline        : {item.deadline or _NOT_AVAILABLE}")
             if item.source:
                 lines.append(f"   Sumber          : {item.source}")
+            if item.source_ref:
+                lines.append(f"   Referensi audio : {item.source_ref}")
             if item.is_manually_edited:
                 lines.append("   (diedit manual)")
     else:
@@ -465,6 +499,8 @@ def render_txt(data: NotulenData) -> str:
             if segment.speaker != "—":
                 prefix = f"{prefix} {segment.speaker}:"
             lines.append(f"{prefix} {segment.text}")
+            if segment.source_ref:
+                lines.append(f"   Referensi audio: {segment.source_ref}")
     else:
         lines.append(_NOT_AVAILABLE)
 
@@ -605,6 +641,10 @@ def render_pdf(data: NotulenData) -> bytes:
     story: list[object] = [
         _pdf_paragraph(data.title, title_style),
         _pdf_paragraph("Notulen rapat - dokumen dari data yang tersimpan", small),
+        _pdf_paragraph(
+            "Provenance: audio#t=<mulai>-<akhir> dalam detik, relatif terhadap rekaman ini.",
+            small,
+        ),
         Spacer(1, 8),
     ]
 
@@ -652,7 +692,16 @@ def render_pdf(data: NotulenData) -> bytes:
     story.append(_section_heading("TOPIK PEMBAHASAN", heading))
     if data.topics:
         for index, topic in enumerate(data.topics, start=1):
-            source = f" <font color='#6b7280'>[{_pdf_text(topic.source)}]</font>" if topic.source else ""
+            source_parts = []
+            if topic.source:
+                source_parts.append(f"[{_pdf_text(topic.source)}]")
+            if topic.source_ref:
+                source_parts.append(f"[{_pdf_text(topic.source_ref)}]")
+            source = (
+                f" <font color='#6b7280'>{' '.join(source_parts)}</font>"
+                if source_parts
+                else ""
+            )
             story.append(
                 Paragraph(
                     f"<b>{index}. {_pdf_text(topic.title or '(topik tanpa judul)')}</b>{source}",
@@ -667,7 +716,16 @@ def render_pdf(data: NotulenData) -> bytes:
     story.append(_section_heading("KEPUTUSAN", heading))
     if data.decisions:
         for index, decision in enumerate(data.decisions, start=1):
-            source = f" <font color='#6b7280'>[{_pdf_text(decision.source)}]</font>" if decision.source else ""
+            source_parts = []
+            if decision.source:
+                source_parts.append(f"[{_pdf_text(decision.source)}]")
+            if decision.source_ref:
+                source_parts.append(f"[{_pdf_text(decision.source_ref)}]")
+            source = (
+                f" <font color='#6b7280'>{' '.join(source_parts)}</font>"
+                if source_parts
+                else ""
+            )
             story.append(
                 Paragraph(
                     f"{index}. {_pdf_text(decision.text or '(keputusan tanpa teks)')}{source}",
@@ -691,6 +749,9 @@ def render_pdf(data: NotulenData) -> bytes:
                 task += f"<br/>{_pdf_text(item.description)}"
             if item.is_manually_edited:
                 task += "<br/><font color='#6b7280'>(diedit manual)</font>"
+            source_parts = [_pdf_text(item.source) if item.source else "-"]
+            if item.source_ref:
+                source_parts.append(_pdf_text(item.source_ref))
             table_data.append(
                 [
                     _pdf_paragraph(str(index), cell),
@@ -698,7 +759,7 @@ def render_pdf(data: NotulenData) -> bytes:
                     _pdf_paragraph(item.assignee or "-", cell),
                     _pdf_paragraph(item.deadline or "-", cell),
                     _pdf_paragraph(item.status, cell),
-                    _pdf_paragraph(item.source or "-", cell),
+                    Paragraph("<br/>".join(source_parts), cell),
                 ]
             )
         action_table = Table(
@@ -735,9 +796,14 @@ def render_pdf(data: NotulenData) -> bytes:
     if data.segments:
         for segment in data.segments:
             speaker = f" {_pdf_text(segment.speaker)}:" if segment.speaker != "-" else ""
+            source_ref = (
+                f" <font color='#6b7280'>[{_pdf_text(segment.source_ref)}]</font>"
+                if segment.source_ref
+                else ""
+            )
             story.append(
                 Paragraph(
-                    f"<font color='#6b7280'>[{_pdf_text(segment.timestamp)}]</font>"
+                    f"<font color='#6b7280'>[{_pdf_text(segment.timestamp)}]</font>{source_ref}"
                     f"<b>{speaker}</b> {_pdf_text(segment.text)}",
                     body,
                 )

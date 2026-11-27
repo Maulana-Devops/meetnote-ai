@@ -159,7 +159,9 @@ storage/meetings/{meeting_id}/recording-{uuid}.{ext}
   regenerasi aman (hanya item AI diganti), edit/status/delete, dan recovery
 - `app/services/export.py` – snapshot `NotulenData` (read-only), render TXT UTF-8
   dan PDF via reportlab/Platypus, font TTF + sanitasi glyph, slug nama file;
-  placeholder eksplisit untuk data kosong dan status job disertakan
+  placeholder eksplisit untuk data kosong dan status job disertakan; provenance
+  `audio#t=<start>-<end>` mengikuti segmen/topik/keputusan/action item tanpa
+  menggantikan label waktu manusia
 
 ## Frontend
 
