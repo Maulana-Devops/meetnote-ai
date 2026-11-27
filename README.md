@@ -689,6 +689,14 @@ Detail lengkap ada di `docs/SPRINT4.md`, `docs/SPRINT5.md`,
   ASCII judul meeting, UUID divalidasi, dan exception tidak pernah dikirim ke
   klien maupun ditulis dengan pesan aslinya ke log. Hasil dibuat di memori, jadi
   tidak ada file export yang tersimpan di server.
+- Hardening lanjutan: `Content-Length` upload ditolak lebih awal sebelum
+  multipart diparse; durasi rekaman harus finit dan wajar; satu meeting satu
+  rekaman dikunci sampai commit; `X-Request-ID` disanitasi; semua respons
+  memakai `X-Content-Type-Options: nosniff`; CORS wildcard ditolak; Compose
+  mempublikasikan port hanya di `127.0.0.1`; downgrade Alembic sengaja
+  dinonaktifkan agar tidak menghapus data.
+- Frontend membatasi panjang/konten pesan error, hanya memuat audio dari origin
+  backend yang sama, serta memakai header keamanan dasar pada Nginx.
 
 ## Dokumentasi
 

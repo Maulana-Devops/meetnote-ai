@@ -126,8 +126,9 @@ lalu nyalakan backend. Lihat `docs/BACKUP_RESTORE.md` untuk detail hubungan
 
 - Background job masih berjalan di proses FastAPI yang sama; belum ada worker
   atau antrean terdistribusi.
-- Belum ada autentikasi/RBAC. Jangan mengekspos port `8000` ke Internet tanpa
-  reverse proxy dan pembatasan akses.
+- Belum ada autentikasi/RBAC. Compose mempublikasikan `8000` dan `4173` hanya
+  di `127.0.0.1` secara default. Jangan mengubah binding ke `0.0.0.0` atau
+  mengekspos ke Internet/LAN tanpa reverse proxy dan pembatasan akses.
 - Endpoint sensitif perlu ditinjau terhadap OWASP Top 10 2025 sebelum dipakai
   banyak orang.
 - Satu meeting = satu recording. Rekaman kedua hanya lewat delete-then-add.

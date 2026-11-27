@@ -58,6 +58,7 @@ _create_provider = create_provider
 
 _TIME_TOLERANCE_SECONDS = 0.5
 _MAX_TEXT_LENGTH = 255
+_MAX_DESCRIPTION_LENGTH = 2000
 
 
 @dataclass(frozen=True)
@@ -586,6 +587,11 @@ def update_action_item(
 
     if "description" in fields:
         description = (update.description or "").strip()
+        if len(description) > _MAX_DESCRIPTION_LENGTH:
+            raise HTTPException(
+                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Deskripsi maksimal {_MAX_DESCRIPTION_LENGTH} karakter.",
+            )
         item.description = description
 
     if "assignee_speaker_id" in fields:

@@ -1,8 +1,8 @@
 name: CI
 
 on:
+  # Scan secret juga berjalan pada push ke cabang feature, bukan hanya main.
   push:
-    branches: [main]
   pull_request:
 
 permissions:

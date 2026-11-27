@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     STORAGE_DIR: str = str(_PROJECT_ROOT / "storage")
     # Batas ukuran satu file rekaman (25 MB). Bisa ditimpa lewat .env.
     MAX_AUDIO_FILE_BYTES: int = 25 * 1024 * 1024
+    # Batas durasi metadata (24 jam). Menolak inf/1e999 yang merusak export.
+    MAX_AUDIO_DURATION_SECONDS: float = 24 * 60 * 60
 
     # Sprint 4 — Speech-to-text. API key HANYA dibaca di backend.
     # `mock` tersedia untuk test/pengembangan lokal dan menghasilkan teks

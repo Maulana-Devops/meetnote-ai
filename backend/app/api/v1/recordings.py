@@ -13,6 +13,7 @@ Endpoint yang sama dipakai ulang untuk Sprint 3 — tidak ada endpoint upload
 duplikat. File dari pengguna tidak pernah dipakai sebagai nama file di storage.
 """
 
+import math
 import os
 import uuid
 
@@ -75,117 +76,133 @@ def _get_asset(db: Session, meeting_id: uuid.UUID) -> AudioAsset:
 async def upload_recording(
     meeting_id: uuid.UUID,
     file: UploadFile = File(..., description="Audio hasil MediaRecorder"),
-    duration_seconds: float = Form(0.0, ge=0, description="Durasi rekaman (detik)"),
+    duration_seconds: float = Form(
+        0.0,
+        ge=0,
+        le=settings.MAX_AUDIO_DURATION_SECONDS,
+        allow_inf_nan=False,
+        description="Durasi rekaman (detik)",
+    ),
     db: Session = Depends(get_db),
 ) -> AudioAsset:
     """Simpan rekaman baru untuk meeting yang sudah dibuat."""
     meeting = _get_meeting(db, meeting_id)
 
-    # Satu meeting = satu rekaman. Tolak duplikat sebelum menulis file.
-    existing = (
-        db.query(AudioAsset).filter(AudioAsset.meeting_id == str(meeting_id)).first()
-    )
-    if existing is not None:
+    duration = float(duration_seconds)
+    if not math.isfinite(duration) or duration > settings.MAX_AUDIO_DURATION_SECONDS:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Meeting ini sudah memiliki rekaman. Hapus rekaman lama terlebih dahulu.",
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Durasi rekaman tidak valid.",
         )
 
-    # Validasi MIME type dan ekstensi. Nama file pengguna hanya dibaca,
-    # tidak dipakai untuk membuat path.
-    mime_base = normalize_content_type(file.content_type)
-    extension = extension_for_content_type(mime_base)
-    if extension is None:
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail=(
-                f"Tipe file '{mime_base or 'tidak diketahui'}' tidak didukung. "
-                "Gunakan audio/webm, audio/ogg, audio/wav, audio/mpeg, atau audio/mp4."
-            ),
+    # Satu meeting = satu rekaman. Kunci mencakup pengecekan hingga commit
+    # agar dua request bersamaan tidak menulis dua file pada DB legacy yang
+    # belum memiliki unique index.
+    with job_guard.job_lock("recording", meeting_id):
+        existing = (
+            db.query(AudioAsset).filter(AudioAsset.meeting_id == str(meeting_id)).first()
+        )
+        if existing is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Meeting ini sudah memiliki rekaman. Hapus rekaman lama terlebih dahulu.",
+            )
+
+        # Validasi MIME type dan ekstensi. Nama file pengguna hanya dibaca,
+        # tidak dipakai untuk membuat path.
+        mime_base = normalize_content_type(file.content_type)
+        extension = extension_for_content_type(mime_base)
+        if extension is None:
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail=(
+                    f"Tipe file '{mime_base or 'tidak diketahui'}' tidak didukung. "
+                    "Gunakan audio/webm, audio/ogg, audio/wav, audio/mpeg, atau audio/mp4."
+                ),
+            )
+
+        original_filename = os.path.basename(file.filename or "recording")
+        if not is_allowed_extension(original_filename):
+            raise HTTPException(
+                status_code=400,
+                detail="Ekstensi file tidak dikenali. Gunakan .webm, .ogg, .wav, .mp3, atau .m4a.",
+            )
+
+        # Batasi ukuran dengan membaca maksimal batas + 1 byte.
+        max_bytes = settings.MAX_AUDIO_FILE_BYTES
+        content = await file.read(max_bytes + 1)
+        if len(content) > max_bytes:
+            raise HTTPException(
+                status_code=413,
+                detail=(
+                    f"Ukuran rekaman melebihi batas {max_bytes} byte "
+                    f"({max_bytes / (1024 * 1024):.1f} MB)."
+                ),
+            )
+
+        # Signature sederhana: hanya menolak jika pola dikenali dan tidak cocok.
+        # Signature yang tidak dikenali tetap diterima (lihat docs/SPRINT3.md).
+        if signature_conflicts(content, mime_base):
+            detected = detect_content_mime(content)
+            raise HTTPException(
+                status_code=415,
+                detail=(
+                    f"Isi file terdeteksi sebagai {detected}, tetapi MIME dinyatakan "
+                    f"{mime_base or 'tidak diketahui'}."
+                ),
+            )
+
+        filename = make_safe_filename(extension)
+        directory = meeting_directory(meeting_id)
+        final_path = directory / filename
+        temp_path = directory / f"{filename}.part"
+
+        try:
+            directory.mkdir(parents=True, exist_ok=True)
+            with temp_path.open("wb") as output:
+                output.write(content)
+            # Atomic rename: file hanya tampak lengkap setelah ditulis semua.
+            os.replace(temp_path, final_path)
+        except OSError:  # pragma: no cover - kegagalan disk
+            temp_path.unlink(missing_ok=True)
+            raise HTTPException(
+                status_code=500,
+                detail="Gagal menyimpan file audio.",
+            ) from None
+
+        asset = AudioAsset(
+            meeting_id=str(meeting_id),
+            original_filename=original_filename,
+            storage_filename=filename,
+            storage_path=relative_storage_path(meeting_id, filename),
+            mime_type=mime_base,
+            file_size_bytes=len(content),
+            duration_seconds=duration,
         )
 
-    original_filename = os.path.basename(file.filename or "recording")
-    if not is_allowed_extension(original_filename):
-        raise HTTPException(
-            status_code=400,
-            detail="Ekstensi file tidak dikenali. Gunakan .webm, .ogg, .wav, .mp3, atau .m4a.",
-        )
+        db.add(asset)
+        meeting.status = MeetingStatus.UPLOADED
 
-    # Batasi ukuran dengan membaca maksimal batas + 1 byte.
-    max_bytes = settings.MAX_AUDIO_FILE_BYTES
-    content = await file.read(max_bytes + 1)
-    if len(content) > max_bytes:
-        raise HTTPException(
-            status_code=413,
-            detail=(
-                f"Ukuran rekaman melebihi batas {max_bytes} byte "
-                f"({max_bytes / (1024 * 1024):.1f} MB)."
-            ),
-        )
+        try:
+            db.commit()
+            db.refresh(asset)
+        except IntegrityError as exc:  # pragma: no cover - dua upload bersamaan
+            db.rollback()
+            final_path.unlink(missing_ok=True)
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Meeting ini sudah memiliki rekaman. Hapus rekaman lama terlebih dahulu.",
+            ) from exc
+        except SQLAlchemyError:  # pragma: no cover - jalur error DB
+            db.rollback()
+            # Jangan biarkan file yatim jika metadata gagal disimpan.
+            final_path.unlink(missing_ok=True)
+            raise HTTPException(
+                status_code=500,
+                detail="Gagal menyimpan metadata rekaman.",
+            ) from None
 
-    # Signature sederhana: hanya menolak jika pola dikenali dan tidak cocok.
-    # Signature yang tidak dikenali tetap diterima (lihat docs/SPRINT3.md).
-    if signature_conflicts(content, mime_base):
-        detected = detect_content_mime(content)
-        raise HTTPException(
-            status_code=415,
-            detail=(
-                f"Isi file terdeteksi sebagai {detected}, tetapi MIME dinyatakan "
-                f"{mime_base or 'tidak diketahui'}."
-            ),
-        )
-
-    filename = make_safe_filename(extension)
-    directory = meeting_directory(meeting_id)
-    final_path = directory / filename
-    temp_path = directory / f"{filename}.part"
-
-    try:
-        directory.mkdir(parents=True, exist_ok=True)
-        with temp_path.open("wb") as output:
-            output.write(content)
-        # Atomic rename: file hanya tampak lengkap setelah ditulis semua.
-        os.replace(temp_path, final_path)
-    except OSError:  # pragma: no cover - kegagalan disk
-        temp_path.unlink(missing_ok=True)
-        raise HTTPException(
-            status_code=500,
-            detail="Gagal menyimpan file audio.",
-        ) from None
-
-    asset = AudioAsset(
-        meeting_id=str(meeting_id),
-        original_filename=original_filename,
-        storage_filename=filename,
-        storage_path=relative_storage_path(meeting_id, filename),
-        mime_type=mime_base,
-        file_size_bytes=len(content),
-        duration_seconds=float(duration_seconds),
-    )
-
-    db.add(asset)
-    meeting.status = MeetingStatus.UPLOADED
-
-    try:
-        db.commit()
-        db.refresh(asset)
-    except IntegrityError as exc:  # pragma: no cover - dua upload bersamaan
-        db.rollback()
-        final_path.unlink(missing_ok=True)
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Meeting ini sudah memiliki rekaman. Hapus rekaman lama terlebih dahulu.",
-        ) from exc
-    except SQLAlchemyError:  # pragma: no cover - jalur error DB
-        db.rollback()
-        # Jangan biarkan file yatim jika metadata gagal disimpan.
-        final_path.unlink(missing_ok=True)
-        raise HTTPException(
-            status_code=500,
-            detail="Gagal menyimpan metadata rekaman.",
-        ) from None
-
-    return asset
+        return asset
 
 
 @router.get("/{meeting_id}/recording", response_model=AudioAssetRead)

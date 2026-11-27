@@ -33,6 +33,17 @@ dist/
 .vite/
 *.tsbuildinfo
 
+# === Model, bobot, dan kunci (lisensi pihak ketiga / rahasia) ===
+models/
+*.safetensors
+*.gguf
+*.bin
+*.pt
+*.pem
+*.key
+id_rsa*
+secrets*.json
+
 # === Editor & OS ===
 .vscode/
 .idea/

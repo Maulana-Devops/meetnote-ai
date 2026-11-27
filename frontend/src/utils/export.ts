@@ -10,13 +10,12 @@ export function fallbackExportFilename(meetingId: string, format: ExportFormat):
   return `notulen-${safeId}.${format}`
 }
 
-/** Nama file tidak boleh memuat path, quote, kontrol, atau "..". */
-function isSafeFilename(value: string): boolean {
+/** Nama file hanya boleh memuat ASCII aman dan ekstensi sesuai format. */
+function isSafeFilename(value: string, format: ExportFormat): boolean {
   if (!value || value.length > 120) return false
-  if (value.includes('/') || value.includes('\\') || value.includes('..')) return false
-  if (value.includes('"') || value.includes("'")) return false
-  // eslint-disable-next-line no-control-regex
-  return !/[\u0000-\u001f\u007f]/.test(value)
+  if (!/^[A-Za-z0-9][A-Za-z0-9._ -]*$/.test(value)) return false
+  if (value.includes('..')) return false
+  return value.toLowerCase().endsWith(`.${format}`)
 }
 
 /**
@@ -33,7 +32,7 @@ export function resolveExportFilename(
   const quoted = /filename\s*=\s*"([^"]*)"/i.exec(header)
   const bare = /filename\s*=\s*([^;\s]+)/i.exec(header)
   const candidate = quoted?.[1] ?? bare?.[1] ?? ''
-  return isSafeFilename(candidate) ? candidate : fallbackExportFilename(meetingId, format)
+  return isSafeFilename(candidate, format) ? candidate : fallbackExportFilename(meetingId, format)
 }
 
 /**

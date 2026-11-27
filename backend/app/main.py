@@ -16,12 +16,15 @@ _BACKEND_ROOT = os.path.dirname(os.path.abspath(__file__))
 if _BACKEND_ROOT not in sys.path:
     sys.path.insert(0, _BACKEND_ROOT)
 
+from urllib.parse import urlparse
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.logging import RequestIDMiddleware
+from app.core.request_limits import UploadSizeLimitMiddleware
 from app.database.session import Base, engine
 
 
@@ -79,16 +82,28 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS: origin dapat diatur lewat CORS_ALLOWED_ORIGINS (default: Vite dev server).
-_cors_origins = [
-    origin.strip()
-    for origin in settings.CORS_ALLOWED_ORIGINS.split(",")
-    if origin.strip()
-]
+def safe_cors_origins(raw: str) -> list[str]:
+    """Origin yang benar-benar berbentuk http(s)://host; wildcard ditolak."""
+    origins: list[str] = []
+    for value in raw.split(","):
+        origin = value.strip()
+        if not origin or origin == "*":
+            continue
+        parsed = urlparse(origin)
+        if parsed.scheme in {"http", "https"} and parsed.netloc:
+            origins.append(origin)
+    return origins
+
+
+# Urutan penting: RequestID adalah middleware terluar, lalu CORS, lalu batas
+# ukuran upload. Dengan begitu response 413 tetap membawa X-Request-ID dan
+# header CORS yang sah.
+app.add_middleware(UploadSizeLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_cors_origins,
-    allow_credentials=True,
+    allow_origins=safe_cors_origins(settings.CORS_ALLOWED_ORIGINS),
+    # Tidak ada cookie/token dalam mode tanpa akun; jangan aktifkan credentials.
+    allow_credentials=False,
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Accept"],
 )

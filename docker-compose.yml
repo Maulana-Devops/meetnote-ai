@@ -21,7 +21,9 @@ services:
       - meetnote_data:/data
       - meetnote_models:/models
     ports:
-      - "8000:8000"
+      # Default hanya loopback: mode tanpa akun tidak boleh terbuka ke LAN.
+      # Untuk akses LAN, gunakan reverse proxy + pembatasan akses.
+      - "127.0.0.1:8000:8000"
     healthcheck:
       test:
         - CMD
@@ -39,7 +41,7 @@ services:
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
     ports:
-      - "4173:80"
+      - "127.0.0.1:4173:80"
     depends_on:
       backend:
         condition: service_healthy

@@ -38,6 +38,7 @@ import type {
   TranscriptSegment,
   TranscriptionDetail,
 } from '../types'
+import { safeConfirmTitle } from '../utils/apiSafety'
 import { saveBlob, type ExportFormat } from '../utils/export'
 import { formatBytes, formatDuration } from '../utils/format'
 import { SpeakerManager } from './SpeakerManager'
@@ -956,7 +957,7 @@ export function MeetingDetail({
   }
 
   async function handleDeleteActionItem(item: ActionItem) {
-    if (!window.confirm(`Hapus action item "${item.title}"?`)) return
+    if (!window.confirm(`Hapus action item "${safeConfirmTitle(item.title)}"?`)) return
 
     setActionError('')
     try {

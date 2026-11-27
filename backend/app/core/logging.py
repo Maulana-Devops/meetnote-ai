@@ -7,6 +7,7 @@ header ``X-Request-ID`` supaya log backend bisa dicocokkan dengan laporan UI.
 
 import json
 import logging
+import re
 import uuid
 from contextvars import ContextVar
 from typing import Any
@@ -15,6 +16,13 @@ from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 request_id_var: ContextVar[str] = ContextVar("request_id", default="-")
+
+_REQUEST_ID_RE = re.compile(r"[A-Za-z0-9._:-]{1,128}\Z")
+
+
+def sanitize_request_id(value: str) -> str:
+    """Terima request ID yang aman untuk header dan log; jika tidak, buat baru."""
+    return value if _REQUEST_ID_RE.fullmatch(value) else uuid.uuid4().hex
 
 
 class JsonFormatter(logging.Formatter):
@@ -47,7 +55,7 @@ def configure_logging() -> None:
 
 
 class RequestIDMiddleware:
-    """Buat/terima request ID dan menambahkannya ke header respons."""
+    """Buat/terima request ID aman dan pasang header keamanan dasar."""
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
@@ -62,7 +70,7 @@ class RequestIDMiddleware:
             if name.lower() == b"x-request-id":
                 incoming = value.decode("latin-1").strip()
                 break
-        request_id = incoming or uuid.uuid4().hex
+        request_id = sanitize_request_id(incoming) if incoming else uuid.uuid4().hex
 
         state = scope.setdefault("state", {})
         state["request_id"] = request_id
@@ -72,6 +80,10 @@ class RequestIDMiddleware:
             if message["type"] == "http.response.start":
                 headers = MutableHeaders(scope=message)
                 headers["X-Request-ID"] = request_id
+                # MIME audio dikontrol allowlist; ini mencegah proxy/browser
+                # menebak ulang content-type pada file yang tidak dikenali.
+                if "X-Content-Type-Options" not in headers:
+                    headers["X-Content-Type-Options"] = "nosniff"
             await send(message)
 
         logger = logging.getLogger("meetnote.request")

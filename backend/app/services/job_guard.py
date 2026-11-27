@@ -26,17 +26,32 @@ from typing import Iterator
 from sqlalchemy.orm import Session
 
 _locks: dict[tuple[str, str], threading.Lock] = {}
+_users: dict[tuple[str, str], int] = {}
 _registry_lock = threading.Lock()
 
 
 @contextmanager
 def job_lock(job_type: str, meeting_id: object) -> Iterator[None]:
-    """Kunci akses ke satu (job_type, meeting) dalam proses ini."""
+    """Kunci akses ke satu (job_type, meeting) dalam proses ini.
+
+    Entri dihapus setelah pemakai terakhir selesai supaya registry tidak
+    tumbuh seiring jumlah meeting yang pernah diproses.
+    """
     key = (job_type, str(meeting_id))
     with _registry_lock:
         lock = _locks.setdefault(key, threading.Lock())
-    with lock:
-        yield
+        _users[key] = _users.get(key, 0) + 1
+    try:
+        with lock:
+            yield
+    finally:
+        with _registry_lock:
+            remaining = _users.get(key, 1) - 1
+            if remaining <= 0:
+                _users.pop(key, None)
+                _locks.pop(key, None)
+            else:
+                _users[key] = remaining
 
 
 def new_run_token() -> str:

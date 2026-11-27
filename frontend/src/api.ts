@@ -15,6 +15,7 @@ import type {
   TranscriptionDetail,
   TranscriptSegment,
 } from './types'
+import { readDetailMessage, resolvePlaybackUrl } from './utils/apiSafety'
 import { resolveExportFilename, type ExportFormat } from './utils/export'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
@@ -23,17 +24,11 @@ export interface ApiError extends Error {
   status?: number
 }
 
-/** Ambil pesan error dari response FastAPI (field `detail`). */
+/** Ambil pesan error dari response FastAPI (field `detail`) secara fail-closed. */
 async function readErrorMessage(response: Response, fallback: string): Promise<string> {
   try {
     const body = (await response.json()) as { detail?: unknown }
-    if (typeof body.detail === 'string') return body.detail
-    if (Array.isArray(body.detail)) {
-      return body.detail
-        .map((item) => (item && typeof item === 'object' && 'msg' in item ? String(item.msg) : ''))
-        .filter(Boolean)
-        .join('; ')
-    }
+    return readDetailMessage(body.detail, fallback)
   } catch {
     // Response bukan JSON — pakai pesan fallback.
   }
@@ -208,8 +203,7 @@ export async function deleteRecording(meetingId: string): Promise<{ detail: stri
 
 /** URL absolut untuk memutar rekaman lewat endpoint playback backend. */
 export function playbackUrl(asset: AudioAsset): string {
-  if (/^https?:\/\//.test(asset.playback_url)) return asset.playback_url
-  return `${API_BASE_URL}${asset.playback_url}`
+  return resolvePlaybackUrl(asset.playback_url, API_BASE_URL)
 }
 
 /**

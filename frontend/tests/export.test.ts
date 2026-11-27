@@ -48,6 +48,29 @@ test('menolak quote, newline, dan nama file terlalu panjang', () => {
   assert.equal(resolveExportFilename(`filename="${'a'.repeat(200)}.pdf"`, MEETING_ID, 'pdf'), fallback)
 })
 
+test('menolak filename* RFC 5987, separator, unicode aneh, dan leading dot', () => {
+  const expected = fallbackExportFilename(MEETING_ID, 'txt')
+  assert.equal(
+    resolveExportFilename("attachment; filename*=UTF-8''evil%2F.txt", MEETING_ID, 'txt'),
+    expected,
+  )
+  assert.equal(resolveExportFilename('filename="a;b.txt"', MEETING_ID, 'txt'), expected)
+  assert.equal(resolveExportFilename('filename="\u2028x.txt"', MEETING_ID, 'txt'), expected)
+  assert.equal(resolveExportFilename('filename=".bashrc"', MEETING_ID, 'txt'), expected)
+})
+
+test('menolak nama file dengan ekstensi yang tidak sesuai format', () => {
+  const expected = fallbackExportFilename(MEETING_ID, 'pdf')
+  assert.equal(
+    resolveExportFilename('filename="notulen-rapat.txt"', MEETING_ID, 'pdf'),
+    expected,
+  )
+  assert.equal(
+    resolveExportFilename('filename="notulen-rapat.PDF"', MEETING_ID, 'pdf'),
+    'notulen-rapat.PDF',
+  )
+})
+
 test('fallback memakai 8 karakter ID pertama dan ekstensi sesuai format', () => {
   assert.equal(fallbackExportFilename('ABCD-1234-xyz', 'txt'), 'notulen-ABCD-123.txt')
   assert.equal(fallbackExportFilename('!!', 'pdf'), 'notulen-rapat.pdf')
