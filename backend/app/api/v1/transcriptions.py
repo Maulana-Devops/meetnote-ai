@@ -15,6 +15,7 @@ from ...models.diarization import DiarizationJob, DiarizationStatus
 from ...models.transcript import TranscriptionJob, TranscriptionStatus
 from ...schemas.transcription import TranscriptionRead
 from ...services import job_guard
+from ...services.job_queue import TRANSCRIPTION, dispatch_job
 from ...services.transcription import (
     clear_transcription,
     get_transcription,
@@ -38,7 +39,7 @@ def start_transcription(
 ) -> TranscriptionRead:
     """Validasi lalu jalankan transkripsi di background."""
     result = prepare_transcription(db, meeting_id)
-    background_tasks.add_task(run_transcription, meeting_id)
+    dispatch_job(db, background_tasks, TRANSCRIPTION, meeting_id, run_transcription)
     return result
 
 

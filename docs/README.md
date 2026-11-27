@@ -18,6 +18,7 @@
 - [Prosedur Backup & Restore](BACKUP_RESTORE.md)
 - [Manual Acceptance Testing](MANUAL_ACCEPTANCE_TEST.md)
 - [Arsitektur](ARCHITECTURE.md)
+- [Worker antrean job (opsional)](WORKER_QUEUE.md)
 - [Metodologi Benchmark Fase 1](BENCHMARK_METHOD.md)
 
 ## Pembaruan setelah acceptance
@@ -33,3 +34,6 @@
   satu contract test untuk mock/local. Metodologi ada di
   [BENCHMARK_METHOD.md](BENCHMARK_METHOD.md); angka CER/WER/DER/latency
   **belum diterbitkan** karena belum diukur pada korpus dengan consent.
+- **Worker opsional:** mode `JOB_RUNNER=worker` memisahkan eksekusi provider ke
+  proses `worker.py` dengan antrean `job_queue` berbasis database. Default
+  tetap `background`. Detail ada di [WORKER_QUEUE.md](WORKER_QUEUE.md).

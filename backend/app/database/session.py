@@ -10,6 +10,8 @@
 # berupa teks DDL dan TIDAK dijalankan oleh SQLite. busy_timeout juga ditambah
 # supaya writer yang bentrok tidak langsung gagal dengan "database is locked".
 
+import logging
+
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -37,6 +39,22 @@ if _is_sqlite:
             cursor.execute("PRAGMA busy_timeout=5000")
         finally:
             cursor.close()
+
+    if settings.SQLITE_WAL_ENABLED:
+        # WAL dipakai bila beberapa proses (API + worker) membaca/menulis DB
+        # yang sama. Bersifat aditif: tidak mengubah data atau skema tabel.
+        logger = logging.getLogger(__name__)
+        try:
+            with engine.connect() as connection:
+                mode = connection.exec_driver_sql(
+                    "PRAGMA journal_mode=WAL"
+                ).scalar()
+            if str(mode).lower() != "wal":
+                logger.warning("sqlite_wal_not_applied mode=%s", mode)
+        except Exception as exc:  # pragma: no cover - tergantung filesystem
+            logger.warning(
+                "sqlite_wal_unavailable error_category=%s", type(exc).__name__
+            )
 
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

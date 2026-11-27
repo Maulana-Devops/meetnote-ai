@@ -45,6 +45,9 @@ os.environ["LLM_MAX_INPUT_CHARACTERS"] = "24000"
 # Retry diuji terpisah dengan sleep di-mock. Job test tetap deterministik dan
 # tidak menunggu backoff saat provider error disengaja.
 os.environ["PROVIDER_RETRY_ATTEMPTS"] = "1"
+# Mode worker diuji terpisah. Suite utama memakai BackgroundTasks agar alur
+# POST lalu GET tetap sinkron seperti perilaku produksi default.
+os.environ["JOB_RUNNER"] = "background"
 # Test mengelola skema sendiri lewat Base.metadata.create_all()/drop_all().
 # Alembic tidak dipakai supaya tabel alembic_version tidak tertinggal.
 os.environ["RUN_DB_MIGRATIONS"] = "false"

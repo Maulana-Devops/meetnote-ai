@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from ...models.diarization import DiarizationJob, DiarizationStatus
 from ...models.transcript import TranscriptionJob, TranscriptionStatus
 from ...schemas.diarization import DiarizationRead
+from ...services.job_queue import DIARIZATION, dispatch_job
 from ...services.diarization.workflow import (
     clear_diarization,
     get_diarization,
@@ -37,7 +38,7 @@ def start_diarization(
 ) -> DiarizationRead:
     """Validasi lalu jalankan diarisasi di background."""
     result = prepare_diarization(db, meeting_id)
-    background_tasks.add_task(run_diarization, meeting_id)
+    dispatch_job(db, background_tasks, DIARIZATION, meeting_id, run_diarization)
     return result
 
 

@@ -3,6 +3,7 @@
 
 services:
   backend:
+    image: meetnote-backend:local
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -17,6 +18,8 @@ services:
       INDONESIAN_VOCAB_PATH: /config/indonesian-vocab.txt
       BACKEND_PORT: 8000
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:4173,http://127.0.0.1:4173}
+      # API dan worker memakai DB yang sama; WAL mengurangi lock SQLite.
+      SQLITE_WAL_ENABLED: "true"
     volumes:
       - meetnote_data:/data
       - meetnote_models:/models
@@ -45,6 +48,27 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+
+  worker:
+    # Mode worker diaktifkan lewat JOB_RUNNER=worker di backend/.env.
+    # Worker memakai image yang sama; tidak membuka port dan tidak menjalankan migrasi.
+    image: meetnote-backend:local
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: sqlite:////data/meetnote.db
+      STORAGE_DIR: /data/storage
+      STT_MODEL_DIR: /models/faster-whisper
+      INDONESIAN_VOCAB_PATH: /config/indonesian-vocab.txt
+      JOB_RUNNER: worker
+      SQLITE_WAL_ENABLED: "true"
+    volumes:
+      - meetnote_data:/data
+      - meetnote_models:/models
+    depends_on:
+      backend:
+        condition: service_healthy
+    command: ["python", "worker.py"]
 
 volumes:
   meetnote_data:

@@ -16,6 +16,7 @@ from ...models.summary import SummaryJob, SummaryStatus
 from ...models.transcript import TranscriptionJob, TranscriptionStatus
 from ...schemas.summary import SummaryRead
 from ...services import job_guard
+from ...services.job_queue import SUMMARY, dispatch_job
 from ...services.summary.workflow import (
     clear_summary,
     get_summary,
@@ -39,7 +40,7 @@ def start_summary(
 ) -> SummaryRead:
     """Validasi lalu jalankan ringkasan di background (202)."""
     result = prepare_summary(db, meeting_id)
-    background_tasks.add_task(run_summary, meeting_id)
+    dispatch_job(db, background_tasks, SUMMARY, meeting_id, run_summary)
     return result
 
 

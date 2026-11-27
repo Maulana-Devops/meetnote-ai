@@ -9,6 +9,7 @@ from .action_item import (
 )
 from .audio_asset import AudioAsset
 from .diarization import DiarizationJob, DiarizationStatus, Speaker
+from .job_queue import JobQueue, JobQueueStatus
 from .meeting import Meeting
 from .summary import MeetingSummary, SummaryJob, SummaryStatus
 from .transcript import TranscriptSegment, TranscriptionJob, TranscriptionStatus
@@ -22,6 +23,8 @@ __all__ = [
     "AudioAsset",
     "DiarizationJob",
     "DiarizationStatus",
+    "JobQueue",
+    "JobQueueStatus",
     "Meeting",
     "MeetingSummary",
     "Speaker",

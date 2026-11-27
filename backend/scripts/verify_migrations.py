@@ -26,6 +26,7 @@ EXPECTED_TABLES = {
     "action_items",
     "audio_assets",
     "diarization_jobs",
+    "job_queue",
     "meeting_summaries",
     "meetings",
     "speakers",
@@ -181,7 +182,7 @@ def main() -> int:
             missing = EXPECTED_TABLES - tables
             if missing:
                 failures.append(f"{mode}: tabel kurang: {sorted(missing)}")
-            if result["version"] != "0001":
+            if result["version"] != "0002":
                 failures.append(f"{mode}: versi Alembic = {result['version']!r}")
             if result["unique_audio_index"] is not True:
                 failures.append(f"{mode}: index uq_audio_asset_meeting tidak ada")

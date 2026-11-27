@@ -6,6 +6,8 @@ sehingga secret / setelan tidak perlu ditulis langsung di dalam kode.
 
 from pathlib import Path
 
+from typing import Literal
+
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -115,6 +117,18 @@ class Settings(BaseSettings):
     PROVIDER_RETRY_ATTEMPTS: int = Field(default=3, ge=1)
     PROVIDER_RETRY_BASE_SECONDS: float = Field(default=1.0, gt=0)
     PROVIDER_RETRY_MAX_SECONDS: float = Field(default=8.0, gt=0)
+
+    # Mode eksekusi job background. `background` = FastAPI BackgroundTasks
+    # (default, kompatibel dengan deployment lama). `worker` = antrean DB yang
+    # diambil oleh proses `python worker.py`.
+    JOB_RUNNER: Literal["background", "worker"] = "background"
+    JOB_QUEUE_POLL_SECONDS: float = Field(default=1.0, gt=0)
+    JOB_QUEUE_BATCH_SIZE: int = Field(default=4, ge=1)
+    JOB_QUEUE_STALE_SECONDS: float = Field(default=3600.0, gt=0)
+    JOB_QUEUE_MAX_ATTEMPTS: int = Field(default=3, ge=1)
+    # WAL menghilangkan blocking reader/writer pada SQLite saat beberapa worker
+    # memantau antrean. Default false agar deployment lama tidak berubah.
+    SQLITE_WAL_ENABLED: bool = False
 
     # Muat nilai dari file .env jika ada. File .env tidak ikut ter-commit ke Git.
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")

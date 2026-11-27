@@ -16,6 +16,7 @@ from ...models.diarization import DiarizationJob, DiarizationStatus
 from ...models.transcript import TranscriptionJob, TranscriptionStatus
 from ...schemas.action_item import ActionItemListRead, ActionItemRead, ActionItemUpdate
 from ...services import job_guard
+from ...services.job_queue import ACTION_ITEMS, dispatch_job
 from ...services.action_items.workflow import (
     clear_action_items,
     delete_action_item,
@@ -41,7 +42,7 @@ def start_action_items(
 ) -> ActionItemListRead:
     """Validasi lalu jalankan ekstraksi di background (202)."""
     result = prepare_action_items(db, meeting_id)
-    background_tasks.add_task(run_action_items, meeting_id)
+    dispatch_job(db, background_tasks, ACTION_ITEMS, meeting_id, run_action_items)
     return result
 
 

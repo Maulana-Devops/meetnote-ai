@@ -50,6 +50,12 @@ Lalu cek:
 
 Header `X-Request-ID` pada respons bisa dicocokkan dengan log backend JSON.
 
+Compose juga menyertakan service `worker` tanpa port. Ia memakai image backend
+yang sama dan mengambil job dari tabel `job_queue`. Aktifkan dengan
+`JOB_RUNNER=worker` di `backend/.env`; tanpa itu worker tetap berjalan tetapi
+API memakai `BackgroundTasks` seperti sebelumnya. Detail ada di
+`docs/WORKER_QUEUE.md`.
+
 ## 4. Data dan volume
 
 Compose memakai volume bernama `meetnote_data` yang dilewat ke `/data` di
@@ -124,8 +130,9 @@ lalu nyalakan backend. Lihat `docs/BACKUP_RESTORE.md` untuk detail hubungan
 
 ## 7. Batasan yang masih berlaku
 
-- Background job masih berjalan di proses FastAPI yang sama; belum ada worker
-  atau antrean terdistribusi.
+- Default background job masih berjalan di proses FastAPI yang sama. Mode
+  `JOB_RUNNER=worker` memisahkan proses dan memakai antrean SQLite, bukan broker
+  terdistribusi; lihat `docs/WORKER_QUEUE.md`.
 - Belum ada autentikasi/RBAC. Compose mempublikasikan `8000` dan `4173` hanya
   di `127.0.0.1` secara default. Jangan mengubah binding ke `0.0.0.0` atau
   mengekspos ke Internet/LAN tanpa reverse proxy dan pembatasan akses.

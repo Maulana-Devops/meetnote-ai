@@ -117,6 +117,40 @@ def apply_additive_migrations() -> None:
             if table in table_names:
                 _ensure_unique_index(connection, name, table, column)
 
+        # Mode worker (JOB_RUNNER=worker) memakai tabel ini. Database lama yang
+        # di-stamp head tidak menjalankan 0002, jadi pastikan dibuat di sini.
+        # CREATE TABLE IF NOT EXISTS bersifat aditif dan tidak menyentuh data.
+        connection.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS job_queue ("
+                "id VARCHAR(36) NOT NULL, "
+                "job_type VARCHAR(40) NOT NULL, "
+                "meeting_id VARCHAR(36) NOT NULL, "
+                "run_token VARCHAR(36), "
+                "status VARCHAR(20) NOT NULL, "
+                "attempts INTEGER NOT NULL DEFAULT '0', "
+                "worker_id VARCHAR(100), "
+                "error_category VARCHAR(100), "
+                "created_at DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP), "
+                "updated_at DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP), "
+                "PRIMARY KEY (id), "
+                "FOREIGN KEY(meeting_id) REFERENCES meetings (id) ON DELETE CASCADE"
+                ")"
+            )
+        )
+        connection.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_job_queue_status_created_at "
+                "ON job_queue (status, created_at)"
+            )
+        )
+        connection.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_job_queue_meeting_id "
+                "ON job_queue (meeting_id)"
+            )
+        )
+
 
 def _alembic_config() -> Config:
     """Buat Config Alembic yang menunjuk ke folder migrasi backend."""

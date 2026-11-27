@@ -10,6 +10,7 @@ RUN pip install --disable-pip-version-check --no-cache-dir -r requirements.txt
 
 COPY backend/app ./app
 COPY backend/main.py ./main.py
+COPY backend/worker.py ./worker.py
 COPY backend/alembic.ini ./alembic.ini
 COPY backend/alembic ./alembic
 COPY backend/scripts ./scripts

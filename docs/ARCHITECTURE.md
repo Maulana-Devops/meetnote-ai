@@ -42,6 +42,9 @@ FastAPI ── routers /api/v1 ── schemas (Pydantic)
     │                         ├─ SQLite (meetnote.db)
     │                         └─ core/audio + core/storage (validasi & path aman)
     │
+    ├─ worker.py (opsional) ── job_queue → run_* (proses terpisah)
+    │       └─ services/job_queue.py (claim / outcome / stale recovery)
+    │
     ├─ services/transcription.py ── BackgroundTasks (in-process)
     │       └─ services/stt/registry.py
     │             ├─ MockSttProvider            (test / lokal, teks [MOCK])
@@ -238,9 +241,14 @@ storage/meetings/{meeting_id}/recording-{uuid}.{ext}
   di `_mark_failed`, sehingga task lama tidak menimpa job baru. Klaim baris
   existing memakai `UPDATE ... WHERE status != PROCESSING`. Lintas-proses masih
   bergantung pada UNIQUE + `busy_timeout` (bukan antrean distributed).
-- **Background in-process:** FastAPI `BackgroundTasks` dipakai untuk keempat job.
-  Task membuka `SessionLocal()` sendiri, menyimpan hasil/error. Tidak ada
-  Redis/Celery/RabbitMQ/Docker/microservice.
+- **Background in-process (default):** FastAPI `BackgroundTasks` dipakai untuk
+  keempat job. Task membuka `SessionLocal()` sendiri, menyimpan hasil/error.
+  Tidak ada Redis/Celery/RabbitMQ/microservice.
+- **Worker opsional:** `JOB_RUNNER=worker` membuat baris `job_queue` dan proses
+  `worker.py` mengambilnya. Klaim memakai `UPDATE ... WHERE status='PENDING'`;
+  `run_token` dan tabel job asli tetap menjadi sumber kebenaran status. Detail
+  operasional ada di `docs/WORKER_QUEUE.md`. API tidak menjalankan recovery
+  `PROCESSING` dalam mode ini agar job yang masih antre tidak ikut gagal.
 - **Retry provider (backoff + jitter):** `services/provider_retry.py` mengulang
   hanya error sementara (429, timeout, gangguan server/respons provider) untuk
   STT, diarisasi, ringkasan, dan action items. Error konfigurasi, autentikasi,
@@ -367,12 +375,16 @@ menambah kolom nullable `run_token` pada keempat tabel job dan unique index
 4. `ALTER TABLE ... ADD COLUMN run_token VARCHAR(36)` untuk empat tabel job bila
    belum ada (Sprint 9);
 5. `CREATE UNIQUE INDEX uq_audio_asset_meeting` bila tidak ada duplikat lama
-   (Sprint 9).
+   (Sprint 9);
+6. `CREATE TABLE IF NOT EXISTS job_queue` + dua indexnya untuk mode worker
+   (migrasi `0002`). Database lama yang di-`stamp` tidak menjalankan `0002`,
+   jadi jalur aditif ini yang membuat tabel tersebut.
 
 Tidak ada `DROP TABLE`, tidak ada recreasi tabel, dan tidak ada penghapusan
-data. Fase 0 menambahkan Alembic baseline `0001`: database baru dibuat dari
-baseline yang setara dengan model saat ini, sedangkan database lama di-`stamp`
-setelah migrasi aditif dijalankan. Tidak ada perubahan data pengguna.
+data. Fase 0 menambahkan Alembic baseline `0001`, lalu `0002` menambahkan tabel
+`job_queue` secara murni aditif. Database baru dibuat dari migrasi, sedangkan
+database lama di-`stamp` setelah migrasi aditif dijalankan. Tidak ada perubahan
+data pengguna.
 FK baru otomatis ada pada database baru; pada database lama SQLite tidak
 mendukung `ALTER TABLE ADD CONSTRAINT`, sehingga integritas tetap dijaga di
 level ORM (`clear_diarization()` melepaskan `speaker_id` sebelum speaker

@@ -50,28 +50,29 @@ async def lifespan(app: FastAPI):
         Base.metadata.create_all(bind=engine)
         apply_additive_migrations()
 
-    # Sprint 4/5/7/8: background task in-process hilang saat restart. Tandai job
-    # yang masih PROCESSING sebagai FAILED agar bisa dicoba lagi dari UI.
-    # Sprint 9: setiap recovery diisolasi agar satu kegagalan tidak membatalkan
-    # recovery jenis lain atau membuat aplikasi gagal start.
+    # Mode background: task in-process hilang saat restart, jadi tandai job
+    # PROCESSING sebagai FAILED agar bisa dicoba lagi dari UI. Mode worker
+    # sengaja tidak melakukan ini: worker yang membersihkan antrean stale.
+    # Setiap recovery diisolasi agar satu kegagalan tidak membatalkan yang lain.
     import logging
 
     logger = logging.getLogger("meetnote.startup")
 
-    for name, recover in (
-        ("transcription", recover_stuck_transcriptions),
-        ("diarization", recover_stuck_diarizations),
-        ("summary", recover_stuck_summaries),
-        ("action_items", recover_stuck_action_items),
-    ):
-        try:
-            recover()
-        except Exception as exc:  # pragma: no cover - jalur startup abnormal
-            logger.error(
-                "startup_recovery_failed job_type=%s error_category=%s",
-                name,
-                type(exc).__name__,
-            )
+    if settings.JOB_RUNNER != "worker":
+        for name, recover in (
+            ("transcription", recover_stuck_transcriptions),
+            ("diarization", recover_stuck_diarizations),
+            ("summary", recover_stuck_summaries),
+            ("action_items", recover_stuck_action_items),
+        ):
+            try:
+                recover()
+            except Exception as exc:  # pragma: no cover - startup abnormal
+                logger.error(
+                    "startup_recovery_failed job_type=%s error_category=%s",
+                    name,
+                    type(exc).__name__,
+                )
     yield
 
 

@@ -701,6 +701,10 @@ Detail lengkap ada di `docs/SPRINT4.md`, `docs/SPRINT5.md`,
   dengan backoff + jitter maksimal 3 kali. Error konfigurasi/autentikasi/format
   tidak diulang, pesan error untuk pengguna tidak berubah, dan log hanya memuat
   kategori error.
+- Mode worker opsional: `JOB_RUNNER=worker` memindahkan eksekusi provider ke
+  `worker.py` dengan antrean `job_queue` berbasis database. Default tetap
+  `BackgroundTasks`; tidak ada dependency broker baru. Detail ada di
+  `docs/WORKER_QUEUE.md`.
 
 ## Dokumentasi
 
